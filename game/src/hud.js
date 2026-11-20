@@ -84,7 +84,9 @@ export function updateHud(state) {
   const armour = document.getElementById('armour-bar');
   if (armour) armour.style.width = Math.max(0, state.armour) + '%';
   const speed = document.getElementById('speed');
-  if (speed) speed.textContent = Math.round(Math.abs(state.speedKmh || 0)) + ' KM/H';
+  // On foot there is no KM/H: the old "22 KM/H" while walking was a lie
+  // in the frame. In a car it still reads the speed.
+  if (speed) speed.textContent = state.inCar ? Math.round(Math.abs(state.speedKmh || 0)) + ' KM/H' : 'ON FOOT';
   const car = document.getElementById('car-name');
   if (car) car.textContent = state.inCar ? state.carName : 'ON FOOT — RAKA';
   const loc = document.getElementById('location');
