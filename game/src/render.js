@@ -15,7 +15,7 @@ export function createRenderer(canvas, THREE, rand) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xff8c42);
   scene.fog = new THREE.Fog(0xffb703, 120, 380);
-  const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 900);
+  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 900);
   const ambient = new THREE.AmbientLight(0xffe0b3, 0.9);
   scene.add(ambient);
   const sun = new THREE.DirectionalLight(0xff9e5e, 1.4);
@@ -39,6 +39,13 @@ export function createRenderer(canvas, THREE, rand) {
     new THREE.MeshLambertMaterial({ color: 0xf2c9a0 }));
   head.position.y = 2.6;
   playerMesh.add(head);
+  // Weapon in the right hand, pointing forward, so on-foot shots show
+  // Raka is armed — it was invisible before, just a teal capsule.
+  const gun = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.28, 1.3),
+    new THREE.MeshLambertMaterial({ color: 0x222222 }));
+  gun.position.set(-0.62, 1.35, 0.75);
+  gun.name = 'PlayerGun';
+  playerMesh.add(gun);
   scene.add(playerMesh);
   // Parked cars the player can steal (6 original cars).
   const parked = [];
@@ -80,7 +87,10 @@ export function createRenderer(canvas, THREE, rand) {
     playerMesh.visible = !state.inCar;
     if (state.inCar) {
       playerCar.position.set(state.player.x, 1, state.player.z);
-      playerCar.rotation.y = state.player.heading + Math.PI;
+      // Car body is long on its local x-axis; forward is the heading, so
+      // rotation is heading - PI/2. The old heading + PI made the car sit
+      // sideways across the road in every screenshot.
+      playerCar.rotation.y = state.player.heading - Math.PI / 2;
     } else {
       playerMesh.position.set(state.player.x, 0, state.player.z);
       playerMesh.rotation.y = state.player.heading;
@@ -89,7 +99,13 @@ export function createRenderer(canvas, THREE, rand) {
     // Traffic meshes are stored on the state objects by main.js; here we move
     // the scene children that carry userData.speed.
     for (const t of state.traffic) {
-      if (t.mesh) { t.mesh.position.z = t.z; t.mesh.position.x = t.x; }
+      if (t.mesh) {
+        t.mesh.position.z = t.z; t.mesh.position.x = t.x;
+        // Traffic drives along z: dir +1 is heading 0 (south), dir -1 is
+        // heading PI (north). Same -PI/2 rule as the player car, or every
+        // traffic car sits sideways across its lane too.
+        t.mesh.rotation.y = t.dir >= 0 ? -Math.PI / 2 : Math.PI / 2;
+      }
     }
     for (const p of state.pedestrians) {
       if (p.mesh) { p.mesh.position.x = p.x; p.mesh.position.z = p.z; }
@@ -108,8 +124,8 @@ export function createRenderer(canvas, THREE, rand) {
     } else {
       const camAngle = state.cameraAngle || 0;
       const back = state.player.heading + Math.PI + camAngle;
-      const dist = state.inCar ? 10 : 8;
-      const height = state.inCar ? 4.5 : 4;
+      const dist = state.inCar ? 14 : 8;
+      const height = state.inCar ? 5.5 : 4;
       camera.position.set(
         state.player.x + Math.sin(back) * dist,
         height,
