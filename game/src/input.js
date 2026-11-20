@@ -1,6 +1,8 @@
 // Keyboard + mouse input. WASD drive/walk, E enter/exit car, Space brake,
-// P pause, M map, R radio, 1-4 weapons, mouse drag orbits the camera,
-// click shoots on foot.
+// P pause, M map, R radio, 1-4 weapons, Z/X/C crew abilities, mouse drag
+// orbits the camera, click shoots on foot. takePressed reports keys that
+// went down since the last call (a real edge, not a held key), so one press
+// fires one ability, one radio change, one weapon switch.
 export const ACTION_CONFIRM = 1;
 export const ACTION_PAUSE = 2;
 export const ACTION_MAP = 4;
@@ -9,12 +11,14 @@ export const ACTION_SHOOT = 16;
 
 export function createInput(canvas) {
   const keys = {};
+  const pressed = new Set();
   let actions = 0;
   let dragX = 0;
   let dragging = false;
   let lastX = 0;
   function onKey(e) {
     keys[e.code] = true;
+    if (!e.repeat) pressed.add(e.code);
     if (e.code === 'Space' || e.code === 'Enter') actions |= ACTION_CONFIRM;
     if (e.code === 'KeyP' || e.code === 'Escape') actions |= ACTION_PAUSE;
     if (e.code === 'KeyM') actions |= ACTION_MAP;
@@ -45,7 +49,8 @@ export function createInput(canvas) {
     return { x, y };
   }
   function takeActions() { const a = actions; actions = 0; return a; }
+  function takePressed() { const p = new Set(pressed); pressed.clear(); return p; }
   function takeDrag() { const d = dragX; dragX = 0; return d; }
   function isDown(code) { return !!keys[code]; }
-  return { direction, takeActions, takeDrag, isDown, keys };
+  return { direction, takeActions, takePressed, takeDrag, isDown, keys };
 }
