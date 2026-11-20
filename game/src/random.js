@@ -1,4 +1,6 @@
-// Seeded random: the same seed always gives the same city, traffic and shots.
+// Seeded random: the same seed always gives the same city, traffic and
+// shots. One linear congruential stream drives every helper, so a shuffled
+// list or a weighted pick is still deterministic for a given seed.
 export function createRandom(seed) {
   let s = (seed >>> 0) || 1;
   function next() {
@@ -20,5 +22,24 @@ export function createRandom(seed) {
   }
   // True with probability 1/n on the seeded stream.
   function oneIn(n) { return next() < 1 / n; }
-  return { next, range, pick, int, shuffle, oneIn, seed };
+  // A bell-shaped value around 0 (Box-Muller on the seeded stream), for
+  // anything that should cluster near a centre instead of spreading flat.
+  function gauss() {
+    const u = Math.max(next(), 1e-9); const v = next();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+  // Pick one entry from [value, weight] pairs, weighted by the second
+  // number. Falls back to the first entry when the weights add to nothing.
+  function weighted(pairs) {
+    let total = 0;
+    for (const [, w] of pairs) total += w;
+    if (total <= 0) return pairs[0][0];
+    let roll = next() * total;
+    for (const [value, w] of pairs) {
+      roll -= w;
+      if (roll <= 0) return value;
+    }
+    return pairs[pairs.length - 1][0];
+  }
+  return { next, range, pick, int, shuffle, oneIn, gauss, weighted, seed };
 }
