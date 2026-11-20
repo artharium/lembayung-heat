@@ -74,29 +74,48 @@ export function startLembayungHeat() {
     let screen = SCREEN_TITLE;
     let accumulator = 0;
     let last = performance.now();
+    let hudHidden = false;
     showTitleScreen(state);
-    // Title buttons.
-    const continueBtn = document.getElementById('btn-continue');
-    const newBtn = document.getElementById('btn-new');
-    if (continueBtn) {
-      continueBtn.disabled = !hasSave();
-      continueBtn.addEventListener('click', () => {
-        loadGame(state, 0);
-        startMission(state, Math.min(8, state.missionsDone + 1));
-        startPlaying();
-      });
+    wireTitleButtons();
+
+    function wireTitleButtons() {
+      const continueBtn = document.getElementById('btn-continue');
+      const newBtn = document.getElementById('btn-new');
+      if (continueBtn) {
+        continueBtn.disabled = !hasSave();
+        continueBtn.addEventListener('click', () => {
+          loadGame(state, 0);
+          startMission(state, Math.min(8, state.missionsDone + 1));
+          startPlaying();
+        });
+      }
+      if (newBtn) newBtn.addEventListener('click', () => { world.reset(); startPlaying(); });
     }
-    if (newBtn) newBtn.addEventListener('click', () => { world.reset(); startPlaying(); });
+
     function startPlaying() {
       hideScreens();
       screen = SCREEN_PLAY;
-      status.textContent = 'Playing Lembayung Heat. WASD move, E enter car, P pause, M map.';
+      status.textContent = 'Playing Lembayung Heat. WASD move, E enter car, P pause, M map, H hide HUD.';
     }
-    function step() {
-      const actions = input.takeActions();
-      const pressed = input.takePressed();
-      const drag = input.takeDrag();
-      if (drag) state.cameraAngle += drag * 0.005;
+
+    // What happens when a mission completes: a beep, an autosave, fresh
+    // ammo for the weapons the player has unlocked, and the next story
+    // mission at once. The first version left the player with a finished
+    // mission and no way to start the next one (missions 2-8 were
+    // unreachable in real play — the only way in was quitting to the
+    // title and pressing Continue).
+    function afterMissionComplete() {
+      beep(880, 0.2);
+      saveGame(state, 0);
+      state.ammo = WEAPONS.map((w) => (state.respect >= w.unlock ? w.ammo : 0));
+      if (state.missionsDone < 8) {
+        startMission(state, state.missionsDone + 1);
+      } else {
+        state.splash = { text: 'STORY COMPLETE — ALL 8 MISSIONS DONE', timer: 5 };
+      }
+    }
+
+    function handleKeys(pressed) {
       // Radio cycles on a real key press (edge, not hold).
       if (pressed.has('KeyR')) {
         state.radioIndex = (state.radioIndex + 1) % RADIOS.length;
@@ -113,6 +132,21 @@ export function startLembayungHeat() {
       weaponKeys.forEach((code, i) => {
         if (pressed.has(code) && state.respect >= WEAPONS[i].unlock) state.weapon = i;
       });
+      // H hides the HUD for a clean look at the city (a photo mode of
+      // one key); pressing it again brings the HUD back.
+      if (pressed.has('KeyH')) {
+        hudHidden = !hudHidden;
+        const hud = document.getElementById('hud');
+        if (hud) hud.style.display = hudHidden ? 'none' : 'block';
+      }
+    }
+
+    function step() {
+      const actions = input.takeActions();
+      const pressed = input.takePressed();
+      const drag = input.takeDrag();
+      if (drag) state.cameraAngle += drag * 0.005;
+      handleKeys(pressed);
       if (screen === SCREEN_TITLE) {
         if (actions & ACTION_CONFIRM) startPlaying();
         return;
@@ -129,22 +163,7 @@ export function startLembayungHeat() {
       if (screen !== SCREEN_PLAY) return;
       const before = state.missionsDone;
       world.step(STEP, input, actions);
-      if (state.missionsDone > before) {
-        beep(880, 0.2);
-        saveGame(state, 0);
-        // Ammo is restocked after every completed mission, for weapons
-        // the player has unlocked.
-        state.ammo = WEAPONS.map((w) => (state.respect >= w.unlock ? w.ammo : 0));
-        // The next story mission starts at once: the first version left
-        // the player with a finished mission and no way to start the
-        // next one (missions 2-8 were unreachable in real play — the
-        // only way in was quitting to the title and pressing Continue).
-        if (state.missionsDone < 8) {
-          startMission(state, state.missionsDone + 1);
-        } else {
-          state.splash = { text: 'STORY COMPLETE — ALL 8 MISSIONS DONE', timer: 5 };
-        }
-      }
+      if (state.missionsDone > before) afterMissionComplete();
       if (actions & 16) {
         // Shoot on foot: a real shot (ammo, aim, damage) — and a shot
         // fired near the police raises the heat.
@@ -156,6 +175,7 @@ export function startLembayungHeat() {
       }
       updateHud(state);
     }
+
     function frame(now) {
       requestAnimationFrame(frame);
       accumulator += Math.min((now - last) / 1000, 0.25);
