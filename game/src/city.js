@@ -1,42 +1,17 @@
 // City: Lembayung's 5 districts as low-poly Three.js geometry — windowed
 // towers, a skyline, roads with lane markings, crosswalks and sidewalks,
 // the pier with its ferris wheel, the night-market stalls, palms, traffic
-// and pedestrians. Everything is seeded, so the same seed builds the same city.
+// and pedestrians. Everything is seeded, so the same seed builds the same
+// city. v3 pulls the beach-road traffic closer together (five hero cars in
+// a tight stagger instead of three far apart) and gives the market crates
+// and sign boards, so both read at a glance in a small thumbnail.
 import { DISTRICTS, ROAD_GAP, WORLD_SIZE } from './config.js';
 
 export function buildCityDistricts(scene, THREE, rand) {
   const group = new THREE.Group();
   group.name = 'LembayungCity';
-  // Ground: grass base, turquoise sea west, sand beach along the coast road.
-  const ground = new THREE.Mesh(
-    new THREE.BoxGeometry(WORLD_SIZE * 2, 1, WORLD_SIZE * 2),
-    new THREE.MeshLambertMaterial({ color: 0x3a5f3a }));
-  ground.position.y = -0.5;
-  group.add(ground);
-  const sea = new THREE.Mesh(
-    new THREE.BoxGeometry(220, 1, WORLD_SIZE * 2),
-    new THREE.MeshLambertMaterial({ color: 0x2ec4b6 }));
-  sea.position.set(-300, 0.2, 0);
-  group.add(sea);
-  // Beach strip x=-196..-140, top just below the road top so the sand never
-  // buries the beach road or the car in the cover shot.
-  const beach = new THREE.Mesh(
-    new THREE.BoxGeometry(56, 1.2, WORLD_SIZE * 2),
-    new THREE.MeshLambertMaterial({ color: 0xe9d8a6 }));
-  beach.position.set(-168, -0.1, 0);
-  group.add(beach);
-  // Roads: dark asphalt grid, one strip per ROAD_GAP.
-  const roadMat = new THREE.MeshLambertMaterial({ color: 0x2b2d42 });
-  for (let x = -168; x <= 168; x += ROAD_GAP) {
-    const road = new THREE.Mesh(new THREE.BoxGeometry(10, 0.6, WORLD_SIZE), roadMat);
-    road.position.set(x, 0.3, 0);
-    group.add(road);
-  }
-  for (let z = -168; z <= 168; z += ROAD_GAP) {
-    const road = new THREE.Mesh(new THREE.BoxGeometry(WORLD_SIZE, 0.6, 10), roadMat);
-    road.position.set(0, 0.3, z);
-    group.add(road);
-  }
+  buildGround(group, THREE);
+  buildRoads(group, THREE);
   buildRoadMarkings(group, THREE);
   buildSidewalks(group, THREE);
   // Buildings: windowed towers. One shared canvas texture draws the window
@@ -73,20 +48,58 @@ export function buildCityDistricts(scene, THREE, rand) {
   return group;
 }
 
+// Ground: grass base, turquoise sea west, sand beach along the coast road.
+function buildGround(group, THREE) {
+  const ground = new THREE.Mesh(
+    new THREE.BoxGeometry(WORLD_SIZE * 2, 1, WORLD_SIZE * 2),
+    new THREE.MeshLambertMaterial({ color: 0x3a5f3a }));
+  ground.position.y = -0.5;
+  group.add(ground);
+  const sea = new THREE.Mesh(
+    new THREE.BoxGeometry(220, 1, WORLD_SIZE * 2),
+    new THREE.MeshLambertMaterial({ color: 0x2ec4b6 }));
+  sea.position.set(-300, 0.2, 0);
+  group.add(sea);
+  // Beach strip x=-196..-140, top just below the road top so the sand never
+  // buries the beach road or the car in the cover shot.
+  const beach = new THREE.Mesh(
+    new THREE.BoxGeometry(56, 1.2, WORLD_SIZE * 2),
+    new THREE.MeshLambertMaterial({ color: 0xe9d8a6 }));
+  beach.position.set(-168, -0.1, 0);
+  group.add(beach);
+}
+
+// Roads: dark asphalt grid, one strip per ROAD_GAP.
+function buildRoads(group, THREE) {
+  const roadMat = new THREE.MeshLambertMaterial({ color: 0x2b2d42 });
+  for (let x = -168; x <= 168; x += ROAD_GAP) {
+    const road = new THREE.Mesh(new THREE.BoxGeometry(10, 0.6, WORLD_SIZE), roadMat);
+    road.position.set(x, 0.3, 0);
+    group.add(road);
+  }
+  for (let z = -168; z <= 168; z += ROAD_GAP) {
+    const road = new THREE.Mesh(new THREE.BoxGeometry(WORLD_SIZE, 0.6, 10), roadMat);
+    road.position.set(0, 0.3, z);
+    group.add(road);
+  }
+}
+
 // One canvas texture, shared by every tower: a pale facade with a grid of
-// dark windows, a few of them lit. Tinting comes from the material colour.
+// dark windows, a few of them lit warm. Tinting comes from the material
+// colour, and a darker base band grounds each tower.
 export function makeFacadeTexture(THREE) {
   const c = document.createElement('canvas');
   c.width = 128; c.height = 256;
   const g = c.getContext('2d');
   g.fillStyle = '#f5efe4'; g.fillRect(0, 0, 128, 256);
-  for (let row = 0; row < 10; row += 1) {
-    for (let col = 0; col < 5; col += 1) {
-      const lit = ((row * 5 + col) % 7) === 0;
+  for (let row = 0; row < 12; row += 1) {
+    for (let col = 0; col < 6; col += 1) {
+      const lit = ((row * 6 + col) % 8) === 0;
       g.fillStyle = lit ? '#ffd166' : '#2b3a4a';
-      g.fillRect(10 + col * 23, 12 + row * 24, 14, 15);
+      g.fillRect(8 + col * 20, 10 + row * 20, 12, 13);
     }
   }
+  g.fillStyle = '#3a3a3a'; g.fillRect(0, 238, 128, 18);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
@@ -201,7 +214,8 @@ export function buildPier(group, THREE) {
 }
 
 // Market stalls, bigger than v1 (7 wide, 4 tall) with striped awnings and
-// goods on the counter, so a stall reads as a market stall at 250px wide.
+// goods on the counter, plus crates and sign boards between them, so a stall
+// reads as a market stall at 250px wide and the market floor is not empty.
 export function buildMarket(group, THREE, rand) {
   const colours = [0xef476f, 0xffd166, 0x06d6a0, 0x118ab2];
   for (let i = 0; i < 10; i += 1) {
@@ -227,6 +241,24 @@ export function buildMarket(group, THREE, rand) {
       new THREE.MeshBasicMaterial({ color: 0xffb703 }));
     lamp.position.set(sx + 2, 5, sz);
     group.add(lamp);
+  }
+  // Crates between the stall rows and a pair of sign boards at the market
+  // mouth, so the plaza floor reads as a busy market, not bare asphalt.
+  const crateMat = new THREE.MeshLambertMaterial({ color: 0x8b5e3c });
+  for (let i = 0; i < 6; i += 1) {
+    const crate = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.6, 1.6), crateMat);
+    crate.position.set(-58 + i * 9, 0.8, 96 + (i % 2) * 18);
+    group.add(crate);
+  }
+  const signMat = new THREE.MeshLambertMaterial({ color: 0xffd166 });
+  for (const sx of [-64, -16]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.5, 5, 0.5),
+      new THREE.MeshLambertMaterial({ color: 0x5a3a1a }));
+    post.position.set(sx, 2.5, 94);
+    group.add(post);
+    const board = new THREE.Mesh(new THREE.BoxGeometry(5, 2, 0.4), signMat);
+    board.position.set(sx, 5.2, 94);
+    group.add(board);
   }
   return group;
 }
@@ -258,14 +290,15 @@ export function spawnTraffic(scene, THREE, rand, count) {
   const colours = rand.shuffle([0xffb703, 0xef476f, 0x118ab2, 0x06d6a0, 0xffd166, 0xf2f2f2]);
   for (let i = 0; i < count; i += 1) {
     const car = makeCarMesh(THREE, colours[i % colours.length], false);
-    // First three cars drive the beach road (x=-168) ahead of the cover
-    // staging area, so the cover frame always has real traffic in it —
-    // seeded, so the same seed always gives the same frame. Each car sits
-    // in a lane (offset +/-2.5 from the road centre), never on the line.
-    const onBeach = i < 3;
+    // Five hero cars drive the beach road (x=-168) in a tight stagger,
+    // 22m apart, so the cover frame always has real traffic in it close
+    // to the camera — seeded, so the same seed always gives the same
+    // frame. Each car sits in a lane (offset +/-2.5 from the road centre),
+    // never on the line.
+    const onBeach = i < 5;
     const lane = i % 2 ? 2.5 : -2.5;
     const px = onBeach ? -168 + lane : -168 + (i % 9) * ROAD_GAP + lane;
-    const pz = onBeach ? -20 - i * 30 + rand.next() * 4 : -160 + rand.next() * 320;
+    const pz = onBeach ? -20 - i * 22 + rand.next() * 4 : -160 + rand.next() * 320;
     car.position.set(px, 1, pz);
     car.userData = {
       speed: 8 + rand.next() * 6, baseSpeed: 8 + rand.next() * 6,
