@@ -1,6 +1,10 @@
 // Police: wanted level, chase, roadblocks and the helicopter.
 // Key functions first: startPoliceChase, spawnRoadblock, spawnHelicopter.
+// v3 paints Air One light grey-blue with a glass cockpit, so the helicopter
+// reads as a helicopter against the orange sky instead of a black slab, and
+// banks it toward the player as it follows the chase.
 import { makeCarMesh } from './city.js';
+import { HELI_STYLE } from './config.js';
 
 export function startPoliceChase(state, scene, THREE) {
   if (state.wanted < 1) state.wanted = 1;
@@ -69,31 +73,41 @@ export function spawnRoadblock(state, scene, THREE) {
   return state.roadblocks;
 }
 
-// Air One, big: a larger body and rotor, a wide spotlight cone, and a pool
-// of light on the ground under it (state.heliSpot, synced by render.js).
+// Air One, big and light: a pale body with a dark stripe and a glass
+// cockpit, a wide rotor, a warm spotlight cone, and a pool of light on the
+// ground under it (state.heliSpot, synced by render.js).
 export function spawnHelicopter(state, scene, THREE) {
   if (state.helicopter) return state.helicopter;
   const heli = new THREE.Group();
   heli.name = 'AirOne';
-  heli.scale.setScalar(1.6);
+  heli.scale.setScalar(HELI_STYLE.scale);
   const body = new THREE.Mesh(new THREE.BoxGeometry(6, 2.4, 3),
-    new THREE.MeshLambertMaterial({ color: 0x111111 }));
+    new THREE.MeshLambertMaterial({ color: HELI_STYLE.body }));
   heli.add(body);
   const stripe = new THREE.Mesh(new THREE.BoxGeometry(6.1, 0.7, 3.1),
-    new THREE.MeshLambertMaterial({ color: 0xf2f2f2 }));
+    new THREE.MeshLambertMaterial({ color: HELI_STYLE.stripe }));
   stripe.position.y = -0.4;
   heli.add(stripe);
-  const rotor = new THREE.Mesh(new THREE.BoxGeometry(11, 0.25, 0.7),
-    new THREE.MeshLambertMaterial({ color: 0x333333 }));
+  // Glass cockpit at the front (+x): a pale blue box that catches the sun.
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.4, 2.6),
+    new THREE.MeshLambertMaterial({ color: HELI_STYLE.glass }));
+  glass.position.set(2.4, 0.3, 0);
+  heli.add(glass);
+  const rotor = new THREE.Mesh(new THREE.BoxGeometry(13, 0.25, 0.7),
+    new THREE.MeshLambertMaterial({ color: HELI_STYLE.rotor }));
   rotor.position.y = 1.7;
   rotor.name = 'Rotor';
   heli.add(rotor);
   const tail = new THREE.Mesh(new THREE.BoxGeometry(4, 0.8, 0.8),
-    new THREE.MeshLambertMaterial({ color: 0x111111 }));
+    new THREE.MeshLambertMaterial({ color: HELI_STYLE.tail }));
   tail.position.set(-4.5, 0.4, 0);
   heli.add(tail);
+  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.6, 0.8),
+    new THREE.MeshLambertMaterial({ color: HELI_STYLE.stripe }));
+  fin.position.set(-6.2, 0.9, 0);
+  heli.add(fin);
   const light = new THREE.Mesh(new THREE.ConeGeometry(5, 26, 12, 1, true),
-    new THREE.MeshBasicMaterial({ color: 0xfff3b0, transparent: true, opacity: 0.35 }));
+    new THREE.MeshBasicMaterial({ color: 0xfff3b0, transparent: true, opacity: HELI_STYLE.spotOpacity }));
   light.position.y = -13;
   light.rotation.x = Math.PI;
   heli.add(light);
@@ -160,6 +174,10 @@ export function stepPolice(state, dt) {
     state.helicopter.position.z += (state.player.z - state.helicopter.position.z) * dt * 0.8;
     const rotor = state.helicopter.getObjectByName('Rotor');
     if (rotor) rotor.rotation.y += dt * 20;
+    // Bank into the turn: lean toward the player as the helicopter circles
+    // him, so it reads as flying, not hovering on a stick.
+    const bank = Math.max(-0.25, Math.min(0.25, (state.player.x - state.helicopter.position.x) * 0.01));
+    state.helicopter.rotation.z = bank;
   }
   // Wanted decays when no police car is close (broke line of sight); when
   // it reaches zero the player really did escape — count it.
