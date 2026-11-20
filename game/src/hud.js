@@ -1,8 +1,10 @@
 // HUD: wanted stars, minimap, mission objective, crew, timer, popups.
 // Key functions first. The HUD is DOM (crisp text at any size) over the 3D
 // canvas; the minimap is a small 2D canvas drawn every frame. Every number
-// here comes from real game state — nothing is staged for the camera.
-import { DISTRICTS, WEAPONS, CREW, RANKS, EXPORT_ZONE } from './config.js';
+// here comes from real game state — nothing is staged for the camera. The
+// tutorial pill shows state.hint, which the world picks from the live
+// situation, so its text always fits the moment.
+import { DISTRICTS, WEAPONS, CREW, RANKS, EXPORT_ZONE, HINTS } from './config.js';
 
 export function drawWantedStars(state) {
   const el = document.getElementById('wanted');
@@ -13,6 +15,11 @@ export function drawWantedStars(state) {
   el.style.color = state.wanted >= 4 ? '#ff4444' : state.wanted >= 2 ? '#ffb703' : '#ffffff';
 }
 
+function mapPoint(canvas, x, z) {
+  const scale = canvas.width / 440;
+  return [canvas.width / 2 + x * scale, canvas.height / 2 + z * scale];
+}
+
 export function drawMinimap(state, canvas) {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
@@ -21,12 +28,11 @@ export function drawMinimap(state, canvas) {
   ctx.beginPath(); ctx.arc(W / 2, H / 2, W / 2, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = '#2ec4b6'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.arc(W / 2, H / 2, W / 2 - 1, 0, Math.PI * 2); ctx.stroke();
-  const scale = W / 440;
-  const toMap = (x, z) => [W / 2 + x * scale, H / 2 + z * scale];
-  // Sea on the west edge
+  const toMap = (x, z) => mapPoint(canvas, x, z);
+  // Sea on the west edge.
   ctx.fillStyle = '#2ec4b6';
   ctx.fillRect(0, 0, 14, H);
-  // Roads: faint grid
+  // Roads: faint grid.
   ctx.strokeStyle = 'rgba(255,255,255,0.25)';
   for (let i = -168; i <= 168; i += 42) {
     const [x1, y1] = toMap(i, -180); const [x2, y2] = toMap(i, 180);
@@ -54,7 +60,7 @@ export function drawMinimap(state, canvas) {
     ctx.fillStyle = j.taken ? '#666666' : '#ffffff';
     ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill();
   }
-  // Mission marker: yellow diamond
+  // Mission marker: yellow diamond.
   const stage = state.mission && !state.mission.done ? state.mission.def.stages[state.mission.stage] : null;
   if (stage) {
     const [x, y] = toMap(stage.x, stage.z);
@@ -78,7 +84,7 @@ export function drawMinimap(state, canvas) {
     ctx.strokeStyle = '#ffea00'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.stroke();
   }
-  // Player: white arrow, rotated by heading
+  // Player: white arrow, rotated by heading.
   const [px, py] = toMap(state.player.x, state.player.z);
   ctx.save();
   ctx.translate(px, py);
@@ -105,23 +111,30 @@ export function drawMissionObjective(state) {
   stageEl.textContent = m.done ? 'DONE' : `MISSION ${m.id} · STAGE ${m.stage + 1}/${m.def.stages.length}`;
 }
 
+function crewCooldown(state, key) {
+  if (!state.crew) return null;
+  return key === 'Z' ? state.crew.quickFix : key === 'X' ? state.crew.eyesOut : state.crew.swapPlates;
+}
+
 export function drawCrewPanel(state) {
   const el = document.getElementById('crew-list');
   if (!el) return;
   el.innerHTML = CREW.map((c) => {
-    const cd = state.crew ? state.crew[c.key === 'Z' ? 'quickFix' : c.key === 'X' ? 'eyesOut' : 'swapPlates'] : null;
+    const cd = crewCooldown(state, c.key);
     const ready = !cd || cd.cd <= 0;
     const label = ready ? 'READY' : `${Math.ceil(cd.cd)}s`;
     return `<div class="crew-row"><span class="crew-face">${c.name[0]}</span><span class="crew-name">${c.name}</span><span class="crew-ability">${c.ability}</span><span class="crew-key">[${c.key}]</span><span class="crew-state ${ready ? 'ready' : ''}">${label}</span></div>`;
   }).join('');
 }
 
+function fmtTime(totalSeconds) {
+  const s = Math.floor(totalSeconds || 0);
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}
+
 export function drawMissionTimer(state) {
   const el = document.getElementById('mission-timer');
-  if (el) {
-    const s = Math.floor(state.missionElapsed || 0);
-    el.textContent = `⏱ ${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
-  }
+  if (el) el.textContent = `⏱ ${fmtTime(state.missionElapsed)}`;
   const clock = document.getElementById('game-clock');
   if (clock) {
     const mins = Math.floor(state.clockMin || 0);
@@ -148,12 +161,17 @@ export function drawDialogue(state) {
   if (name) name.textContent = speaker || 'Raka';
 }
 
-export function drawRespect(state) {
-  const respect = document.getElementById('respect');
+function rankFor(respect) {
   let rank = RANKS[0]; let next = RANKS[1];
   for (let i = 0; i < RANKS.length; i += 1) {
-    if (state.respect >= RANKS[i].at) { rank = RANKS[i]; next = RANKS[i + 1] || null; }
+    if (respect >= RANKS[i].at) { rank = RANKS[i]; next = RANKS[i + 1] || null; }
   }
+  return { rank, next };
+}
+
+export function drawRespect(state) {
+  const { rank, next } = rankFor(state.respect);
+  const respect = document.getElementById('respect');
   if (respect) {
     respect.textContent = next
       ? `RESPECT ${state.respect} — ${rank.name} · ${Math.round(((state.respect - rank.at) / (next.at - rank.at)) * 100)}% to ${next.name}`
@@ -191,16 +209,13 @@ export function drawSplash(state) {
 export function drawTutorial(state) {
   const el = document.getElementById('tutorial');
   if (!el) return;
-  const hints = [
-    'WASD move · follow the yellow beacon to the mission marker',
-    'Press E near a parked car to steal it',
-    'Drive! W accelerate · S brake · Space handbrake · Z/X/C crew abilities',
-    'M map · P pause · 1-4 weapons · Click to shoot on foot',
-    '',
-  ];
-  const text = hints[state.tutorialStep] || '';
+  // The hint comes from the world (state.hint), computed from the live
+  // situation every step — never from a fixed list. A combat hint gets a
+  // red edge so it reads as urgent, not as a driving tip.
+  const text = state.hint || '';
   el.textContent = text;
   el.style.display = text ? 'block' : 'none';
+  el.classList.toggle('hint-combat', text === HINTS.combat);
 }
 
 export function updateHud(state) {
