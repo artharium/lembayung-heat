@@ -1,7 +1,8 @@
 // A tiny static server for game/ (Node 22, standard library only), so an entry can be played
 // locally without a build step: `node serve.ts` serves game/ on http://localhost:8080.
-// It sends the MIME types a browser game needs, refuses any path outside game/, and otherwise
-// does nothing clever: this is a development convenience, not a web server for the internet.
+// It sends the MIME types a browser game needs, refuses any path outside game/, answers a
+// /healthz probe for scripts that want to know it is up, and otherwise does nothing clever:
+// this is a development convenience, not a web server for the internet.
 import { createReadStream, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
@@ -12,7 +13,7 @@ const args = process.argv.slice(2);
 const portIndex = args.indexOf('--port');
 const requested = portIndex === -1 ? 8080 : Number(args[portIndex + 1]);
 const port = Number.isInteger(requested) && requested > 0 && requested < 65536 ? requested : 8080;
-// v2: --host to bind somewhere other than loopback, --verbose to log what
+// v3: --host to bind somewhere other than loopback, --verbose to log what
 // the browser actually asks for (handy when a 404 hides in the console).
 const hostIndex = args.indexOf('--host');
 const host = hostIndex === -1 ? '127.0.0.1' : args[hostIndex + 1] || '127.0.0.1';
@@ -49,6 +50,13 @@ createServer((request, response) => {
     pathname = decodeURIComponent(url.pathname);
   } catch {
     response.writeHead(400).end('bad request');
+    return;
+  }
+  // A liveness probe for scripts: GET /healthz answers "ok" without
+  // touching the game files, so a test harness can wait for the server
+  // before it opens the game.
+  if (pathname === '/healthz') {
+    response.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' }).end('ok');
     return;
   }
   if (pathname.endsWith('/')) pathname += 'index.html';
