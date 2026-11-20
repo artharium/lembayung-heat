@@ -18,11 +18,14 @@ export function buildCityDistricts(scene, THREE, rand) {
     new THREE.MeshLambertMaterial({ color: 0x2ec4b6 }));
   sea.position.set(-300, 0.2, 0);
   group.add(sea);
-  // Beach strip
+  // Beach strip, widened to x=-196..-140 so the beach/grass seam sits
+  // 28m east of the beach road (x=-168), at the frame edge, not under the
+  // car in the cover shot. Its top (y=0.5) sits below the road top (0.6),
+  // or the sand buries the road and the car looks parked on a beach.
   const beach = new THREE.Mesh(
-    new THREE.BoxGeometry(36, 1.2, WORLD_SIZE * 2),
+    new THREE.BoxGeometry(56, 1.2, WORLD_SIZE * 2),
     new THREE.MeshLambertMaterial({ color: 0xe9d8a6 }));
-  beach.position.set(-178, 0.4, 0);
+  beach.position.set(-168, -0.1, 0);
   group.add(beach);
   // Roads: grid every ROAD_GAP, dark asphalt strips
   const roadMat = new THREE.MeshLambertMaterial({ color: 0x2b2d42 });
@@ -42,6 +45,9 @@ export function buildCityDistricts(scene, THREE, rand) {
   for (let x = -147; x <= 147; x += ROAD_GAP) {
     for (let z = -147; z <= 147; z += ROAD_GAP) {
       if (Math.abs(x) < 12 || Math.abs(z) < 12) continue;
+      // Keep the Pasar Malam plaza open: no building wall in front of the
+      // market stalls, or the on-foot shot is just a flat orange wall.
+      if (x + 12 >= -70 && x + 12 <= -10 && z + 12 >= 90 && z + 12 <= 135) continue;
       if (rand.next() < 0.25) continue;
       const h = 8 + rand.next() * 34;
       const mat = new THREE.MeshLambertMaterial({ color: palette[Math.floor(rand.next() * palette.length)] });
@@ -90,10 +96,22 @@ export function buildPier(group, THREE) {
 export function buildMarket(group, THREE, rand) {
   const colours = [0xef476f, 0xffd166, 0x06d6a0, 0x118ab2];
   for (let i = 0; i < 10; i += 1) {
+    const sx = -60 + (i % 5) * 10; const sz = 100 + Math.floor(i / 5) * 10;
     const stall = new THREE.Mesh(new THREE.BoxGeometry(6, 3, 5),
       new THREE.MeshLambertMaterial({ color: colours[i % colours.length] }));
-    stall.position.set(-60 + (i % 5) * 10, 1.5, 100 + Math.floor(i / 5) * 10);
+    stall.position.set(sx, 1.5, sz);
     group.add(stall);
+    // Awning roof in a contrasting colour, so a stall reads as a market
+    // stall at a glance, not a plain coloured box.
+    const awning = new THREE.Mesh(new THREE.BoxGeometry(7, 0.3, 6),
+      new THREE.MeshLambertMaterial({ color: 0xf2f2f2 }));
+    awning.position.set(sx, 3.2, sz);
+    group.add(awning);
+    // Goods on the counter: a small bright crate.
+    const goods = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1, 1.5),
+      new THREE.MeshLambertMaterial({ color: 0xffd166 }));
+    goods.position.set(sx - 1.5, 3.6, sz);
+    group.add(goods);
   }
   return group;
 }
@@ -105,6 +123,11 @@ export function buildPalms(group, THREE, rand) {
     const x = -170 + rand.next() * 330;
     const z = -170 + rand.next() * 330;
     if (Math.abs(x % ROAD_GAP) < 8 || Math.abs(z % ROAD_GAP) < 8) continue;
+    // No palms in the cover staging corridor (beach road, z 20..140) or
+    // the market plaza: a random palm there lands between the camera and
+    // the player and fills the whole frame with a trunk.
+    if (x >= -185 && x <= -145 && z >= 20 && z <= 140) continue;
+    if (x >= -70 && x <= -10 && z >= 90 && z <= 135) continue;
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.8, 9, 6), trunkMat);
     trunk.position.set(x, 4.5, z);
     group.add(trunk);
@@ -120,7 +143,13 @@ export function spawnTraffic(scene, THREE, rand, count) {
   const colours = [0xffb703, 0xef476f, 0x118ab2, 0x06d6a0, 0xffd166, 0xf2f2f2];
   for (let i = 0; i < count; i += 1) {
     const car = makeCarMesh(THREE, colours[i % colours.length], false);
-    car.position.set(-168 + (i % 9) * ROAD_GAP, 1, -160 + rand.next() * 320);
+    // First three cars drive the beach road (x=-168) ahead of the cover
+    // staging area, so the cover frame always has real traffic in it —
+    // seeded, so the same seed always gives the same frame.
+    const onBeach = i < 3;
+    const px = onBeach ? -168 : -168 + (i % 9) * ROAD_GAP;
+    const pz = onBeach ? -20 - i * 30 + rand.next() * 4 : -160 + rand.next() * 320;
+    car.position.set(px, 1, pz);
     car.userData = { speed: 8 + rand.next() * 6, dir: rand.next() > 0.5 ? 1 : -1, lane: i % 2 };
     scene.add(car);
     cars.push(car);
@@ -134,7 +163,12 @@ export function spawnPedestrians(scene, THREE, rand, count) {
     const ped = new THREE.Mesh(
       new THREE.CapsuleGeometry(0.7, 1.2, 4, 8),
       new THREE.MeshLambertMaterial({ color: [0xef476f, 0xffd166, 0x118ab2, 0xf2f2f2][i % 4] }));
-    ped.position.set(-160 + rand.next() * 320, 1.4, -160 + rand.next() * 320);
+    // First six pedestrians are the Pasar Malam crowd, around the stalls,
+    // so the market is busy in real play, not empty.
+    const inMarket = i < 6;
+    const px = inMarket ? -55 + i * 6 + rand.next() * 2 : -160 + rand.next() * 320;
+    const pz = inMarket ? 96 + (i % 3) * 12 + rand.next() * 2 : -160 + rand.next() * 320;
+    ped.position.set(px, 1.4, pz);
     ped.userData = { speed: 1 + rand.next(), dir: rand.next() * Math.PI * 2 };
     scene.add(ped);
     peds.push(ped);
