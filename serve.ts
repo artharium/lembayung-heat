@@ -12,6 +12,11 @@ const args = process.argv.slice(2);
 const portIndex = args.indexOf('--port');
 const requested = portIndex === -1 ? 8080 : Number(args[portIndex + 1]);
 const port = Number.isInteger(requested) && requested > 0 && requested < 65536 ? requested : 8080;
+// v2: --host to bind somewhere other than loopback, --verbose to log what
+// the browser actually asks for (handy when a 404 hides in the console).
+const hostIndex = args.indexOf('--host');
+const host = hostIndex === -1 ? '127.0.0.1' : args[hostIndex + 1] || '127.0.0.1';
+const verbose = args.includes('--verbose');
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -66,7 +71,11 @@ createServer((request, response) => {
     'content-length': size,
     'cache-control': 'no-store',
   });
+  if (verbose) console.error(`${request.method} ${pathname} -> 200 (${size} bytes)`);
+  // HEAD asks for headers only: no body, or the browser waits for bytes
+  // that never come.
+  if (request.method === 'HEAD') { response.end(); return; }
   createReadStream(file).pipe(response);
-}).listen(port, '127.0.0.1', () => {
-  console.log(`game/ is on http://localhost:${port}`);
+}).listen(port, host, () => {
+  console.log(`game/ is on http://${host}:${port}`);
 });
