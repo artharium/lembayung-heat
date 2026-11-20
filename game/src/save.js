@@ -1,7 +1,9 @@
 // Save: 3 slots in localStorage, autosave after each mission.
 // Key functions first: saveGame, loadGame. Saves are versioned (v2) and
 // validated on load: a slot with a wrong version or a missing number is
-// treated as empty instead of crashing the title screen.
+// treated as empty instead of crashing the title screen. The combat
+// counters (takedowns, shots fired) ride along as optional fields, so a
+// v2 save still loads — they just start at zero.
 import { SAVE_KEY } from './config.js';
 
 const SAVE_VERSION = 2;
@@ -13,6 +15,7 @@ export function saveGame(state, slot) {
     racesWon: state.racesWon, stuntJumps: state.stuntJumps, collectibles: state.collectibles,
     exportsDone: state.exportsDone, districtJobs: state.districtJobs,
     carsStolen: state.carsStolen, copsEscaped: state.copsEscaped,
+    takedowns: state.takedowns || 0, shotsFired: state.shotsFired || 0,
     ammo: state.ammo, day: state.day, clockMin: state.clockMin,
     missionId: state.mission ? state.mission.id : 1,
     player: { x: state.player.x, z: state.player.z },
@@ -38,12 +41,28 @@ export function loadGame(state, slot) {
   state.stuntJumps = data.stuntJumps; state.collectibles = data.collectibles;
   state.exportsDone = data.exportsDone; state.districtJobs = data.districtJobs;
   state.carsStolen = data.carsStolen; state.copsEscaped = data.copsEscaped;
+  state.takedowns = typeof data.takedowns === 'number' ? data.takedowns : 0;
+  state.shotsFired = typeof data.shotsFired === 'number' ? data.shotsFired : 0;
   if (Array.isArray(data.ammo)) state.ammo = data.ammo;
   if (typeof data.day === 'number') state.day = data.day;
   if (typeof data.clockMin === 'number') state.clockMin = data.clockMin;
   if (data.player) { state.player.x = data.player.x; state.player.z = data.player.z; }
   state.saves = all;
   return true;
+}
+
+// Empty one slot (the title screen never offers a delete button, but a
+// fresh start is one call away for anything that needs it).
+export function wipeSave(state, slot) {
+  try {
+    const all = loadAllSaves();
+    all[slot || 0] = null;
+    window.localStorage.setItem(SAVE_KEY, JSON.stringify(all));
+    state.saves = all;
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function validSave(data) {
