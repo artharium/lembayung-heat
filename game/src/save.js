@@ -1,13 +1,19 @@
 // Save: 3 slots in localStorage, autosave after each mission.
-// Key functions first: saveGame, loadGame.
+// Key functions first: saveGame, loadGame. Saves are versioned (v2) and
+// validated on load: a slot with a wrong version or a missing number is
+// treated as empty instead of crashing the title screen.
 import { SAVE_KEY } from './config.js';
+
+const SAVE_VERSION = 2;
 
 export function saveGame(state, slot) {
   const data = {
+    v: SAVE_VERSION,
     money: state.money, respect: state.respect, missionsDone: state.missionsDone,
     racesWon: state.racesWon, stuntJumps: state.stuntJumps, collectibles: state.collectibles,
     exportsDone: state.exportsDone, districtJobs: state.districtJobs,
     carsStolen: state.carsStolen, copsEscaped: state.copsEscaped,
+    ammo: state.ammo, day: state.day, clockMin: state.clockMin,
     missionId: state.mission ? state.mission.id : 1,
     player: { x: state.player.x, z: state.player.z },
     at: new Date().toISOString(),
@@ -26,15 +32,24 @@ export function saveGame(state, slot) {
 export function loadGame(state, slot) {
   const all = loadAllSaves();
   const data = all[slot || 0];
-  if (!data) return false;
+  if (!data || !validSave(data)) return false;
   state.money = data.money; state.respect = data.respect;
   state.missionsDone = data.missionsDone; state.racesWon = data.racesWon;
   state.stuntJumps = data.stuntJumps; state.collectibles = data.collectibles;
   state.exportsDone = data.exportsDone; state.districtJobs = data.districtJobs;
   state.carsStolen = data.carsStolen; state.copsEscaped = data.copsEscaped;
+  if (Array.isArray(data.ammo)) state.ammo = data.ammo;
+  if (typeof data.day === 'number') state.day = data.day;
+  if (typeof data.clockMin === 'number') state.clockMin = data.clockMin;
   if (data.player) { state.player.x = data.player.x; state.player.z = data.player.z; }
   state.saves = all;
   return true;
+}
+
+export function validSave(data) {
+  return !!data && data.v === SAVE_VERSION
+    && typeof data.money === 'number' && typeof data.missionsDone === 'number'
+    && typeof data.respect === 'number';
 }
 
 export function loadAllSaves() {
@@ -42,7 +57,8 @@ export function loadAllSaves() {
     const raw = window.localStorage.getItem(SAVE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((s) => !s || validSave(s));
   } catch {
     return [];
   }
