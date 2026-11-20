@@ -16,7 +16,7 @@
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 
-import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-game.ts';
@@ -33,8 +33,19 @@ if (existsSync(join(here, 'screenshots'))) cpSync(join(here, 'screenshots'), joi
 // scorer would refuse (more than 4 screenshots or one over 256 KiB; more than 993 files in game/ or 48 MiB of game
 // files, in all, or a path under game/ over 1000 bytes: game/ counts beside /output's own 1000-entry cap, its
 // screenshots/ and dossier.json).
+// v2: fail fast with a readable error when the screenshots are missing or
+// oversized, instead of handing in a dossier the gate would refuse.
+const shotDir = join(here, 'screenshots');
+if (!existsSync(shotDir)) throw new Error('screenshots/ is missing — take the 4 shots first (see shots.json)');
+const shots = readdirSync(shotDir).filter((f) => /\.(jpg|jpeg|png|webp)$/i.test(f)).sort();
+if (shots.length === 0 || shots.length > 4) throw new Error(`expected 1-4 screenshots, found ${shots.length}`);
+for (const f of shots) {
+  const size = statSync(join(shotDir, f)).size;
+  if (size > 262144) throw new Error(`screenshot ${f} is ${size} bytes, over the 256 KiB cap`);
+}
+const dossierPath = join(out, 'dossier.json');
 writeFileSync(
-  join(out, 'dossier.json'),
+  dossierPath,
   buildDossier(out, {
     text_max_bytes: 163840,
     screenshots: { max: 4, max_bytes: 262144 },
@@ -43,3 +54,4 @@ writeFileSync(
     game_path_max_bytes: 1000,
   }),
 );
+console.log(`Lembayung Heat v2: ${shots.length} screenshots (${shots.join(', ')}), dossier ${statSync(dossierPath).size} bytes -> ${dossierPath}`);
