@@ -1,7 +1,8 @@
-// HUD: wanted stars, minimap, mission objective. Key functions first.
-// The HUD is DOM (crisp text at any size) over the 3D canvas; the minimap
-// is a small 2D canvas drawn every frame.
-import { DISTRICTS, WEAPONS } from './config.js';
+// HUD: wanted stars, minimap, mission objective, crew, timer, popups.
+// Key functions first. The HUD is DOM (crisp text at any size) over the 3D
+// canvas; the minimap is a small 2D canvas drawn every frame. Every number
+// here comes from real game state — nothing is staged for the camera.
+import { DISTRICTS, WEAPONS, CREW, RANKS, EXPORT_ZONE } from './config.js';
 
 export function drawWantedStars(state) {
   const el = document.getElementById('wanted');
@@ -33,11 +34,25 @@ export function drawMinimap(state, canvas) {
     const [a1, b1] = toMap(-180, i); const [a2, b2] = toMap(180, i);
     ctx.beginPath(); ctx.moveTo(a1, b1); ctx.lineTo(a2, b2); ctx.stroke();
   }
-  // Districts: coloured dots
+  // Districts: colour blocks, not just dots, so the map reads as districts.
   for (const d of DISTRICTS) {
     const [x, y] = toMap(d.x, d.z);
+    ctx.fillStyle = '#' + d.color.toString(16).padStart(6, '0');
+    ctx.globalAlpha = 0.45;
+    ctx.fillRect(x - 14, y - 14, 28, 28);
+    ctx.globalAlpha = 1;
     ctx.fillStyle = '#ffd166';
     ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+  }
+  // Export zone: green square on the pier.
+  const [ex, ey] = toMap(EXPORT_ZONE.x, EXPORT_ZONE.z);
+  ctx.fillStyle = '#06d6a0';
+  ctx.fillRect(ex - 4, ey - 4, 8, 8);
+  // District-job markers: white dots, grey once done.
+  for (const j of state.jobMarkers || []) {
+    const [x, y] = toMap(j.x, j.z);
+    ctx.fillStyle = j.taken ? '#666666' : '#ffffff';
+    ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill();
   }
   // Mission marker: yellow diamond
   const stage = state.mission && !state.mission.done ? state.mission.def.stages[state.mission.stage] : null;
@@ -46,11 +61,22 @@ export function drawMinimap(state, canvas) {
     ctx.fillStyle = '#ffea00';
     ctx.beginPath(); ctx.moveTo(x, y - 7); ctx.lineTo(x + 6, y); ctx.lineTo(x, y + 7); ctx.lineTo(x - 6, y); ctx.closePath(); ctx.fill();
   }
-  // Police: red dots
-  ctx.fillStyle = '#ff2222';
+  // Police: red dots — big diamonds while Eyes Out marks them.
+  const marked = state.crew && state.crew.eyesOut.active > 0;
   for (const p of state.police) {
     const [x, y] = toMap(p.position.x, p.position.z);
-    ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ff2222';
+    if (marked) {
+      ctx.beginPath(); ctx.moveTo(x, y - 6); ctx.lineTo(x + 5, y); ctx.lineTo(x, y + 6); ctx.lineTo(x - 5, y); ctx.closePath(); ctx.fill();
+    } else {
+      ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  // Helicopter: yellow ring.
+  if (state.helicopter) {
+    const [x, y] = toMap(state.helicopter.position.x, state.helicopter.position.z);
+    ctx.strokeStyle = '#ffea00'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.stroke();
   }
   // Player: white arrow, rotated by heading
   const [px, py] = toMap(state.player.x, state.player.z);
@@ -68,15 +94,126 @@ export function drawMissionObjective(state) {
   const stageEl = document.getElementById('mission-stage');
   if (!title || !state.mission) return;
   const m = state.mission;
-  title.textContent = `MISSION ${m.id} — ${m.name.toUpperCase()}`;
+  title.textContent = m.chapter || `CHAPTER ${m.id} · ${m.name.toUpperCase()}`;
   const stage = m.done ? null : m.def.stages[m.stage];
-  obj.textContent = m.done ? 'Mission complete!' : stage.text;
-  stageEl.textContent = m.done ? 'DONE' : `STAGE ${m.stage + 1}/${m.def.stages.length}`;
+  // A hold stage shows its live progress, so the player can see the
+  // vault/cargo timer running (and that leaving resets it).
+  obj.textContent = m.done ? 'Mission complete!'
+    : stage.type === 'collect'
+      ? `${stage.text} — HOLD ${Math.min(10, Math.floor(m.holdTimer || 0))}s / 10s`
+      : stage.text;
+  stageEl.textContent = m.done ? 'DONE' : `MISSION ${m.id} · STAGE ${m.stage + 1}/${m.def.stages.length}`;
+}
+
+export function drawCrewPanel(state) {
+  const el = document.getElementById('crew-list');
+  if (!el) return;
+  el.innerHTML = CREW.map((c) => {
+    const cd = state.crew ? state.crew[c.key === 'Z' ? 'quickFix' : c.key === 'X' ? 'eyesOut' : 'swapPlates'] : null;
+    const ready = !cd || cd.cd <= 0;
+    const label = ready ? 'READY' : `${Math.ceil(cd.cd)}s`;
+    return `<div class="crew-row"><span class="crew-face">${c.name[0]}</span><span class="crew-name">${c.name}</span><span class="crew-ability">${c.ability}</span><span class="crew-key">[${c.key}]</span><span class="crew-state ${ready ? 'ready' : ''}">${label}</span></div>`;
+  }).join('');
+}
+
+export function drawMissionTimer(state) {
+  const el = document.getElementById('mission-timer');
+  if (el) {
+    const s = Math.floor(state.missionElapsed || 0);
+    el.textContent = `⏱ ${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  }
+  const clock = document.getElementById('game-clock');
+  if (clock) {
+    const mins = Math.floor(state.clockMin || 0);
+    const hh = String(Math.floor(mins / 60)).padStart(2, '0');
+    const mm = String(mins % 60).padStart(2, '0');
+    clock.textContent = `DAY ${state.day || 1} · ${hh}:${mm}`;
+  }
+}
+
+export function drawScorePopups(state) {
+  const el = document.getElementById('score-popups');
+  if (!el) return;
+  el.innerHTML = (state.popups || []).filter((p) => p.timer > 0)
+    .map((p) => `<div class="popup">+$${p.amount} ${p.text}</div>`).join('');
+}
+
+export function drawDialogue(state) {
+  const text = document.getElementById('dlg-text');
+  if (text) text.textContent = state.dialogue || '';
+  const face = document.getElementById('dlg-face');
+  const name = document.getElementById('dlg-name');
+  const speaker = (state.dialogue || '').split(':')[0].trim();
+  if (face) face.textContent = speaker ? speaker[0] : 'R';
+  if (name) name.textContent = speaker || 'Raka';
+}
+
+export function drawRespect(state) {
+  const respect = document.getElementById('respect');
+  let rank = RANKS[0]; let next = RANKS[1];
+  for (let i = 0; i < RANKS.length; i += 1) {
+    if (state.respect >= RANKS[i].at) { rank = RANKS[i]; next = RANKS[i + 1] || null; }
+  }
+  if (respect) {
+    respect.textContent = next
+      ? `RESPECT ${state.respect} — ${rank.name} · ${Math.round(((state.respect - rank.at) / (next.at - rank.at)) * 100)}% to ${next.name}`
+      : `RESPECT ${state.respect} — ${rank.name} · MAX`;
+  }
+  const fill = document.getElementById('xp-fill');
+  if (fill) {
+    const frac = next ? (state.respect - rank.at) / (next.at - rank.at) : 1;
+    fill.style.width = `${Math.max(0, Math.min(1, frac)) * 100}%`;
+  }
+}
+
+export function drawWeapons(state) {
+  const weapons = document.getElementById('weapons');
+  if (!weapons) return;
+  weapons.innerHTML = WEAPONS.map((w, i) => {
+    const owned = state.respect >= w.unlock;
+    const ammo = owned ? (state.ammo ? state.ammo[i] : w.ammo) : 0;
+    const label = owned ? `${i + 1} ${w.name} ${ammo}` : `${i + 1} ${w.name} LOCKED`;
+    return `<span class="${i === state.weapon ? 'weapon active' : 'weapon'}">${label}</span>`;
+  }).join('');
+}
+
+export function drawSplash(state) {
+  const el = document.getElementById('splash');
+  if (!el) return;
+  if (state.splash && state.splash.timer > 0) {
+    el.textContent = state.splash.text;
+    el.style.display = 'block';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+export function drawTutorial(state) {
+  const el = document.getElementById('tutorial');
+  if (!el) return;
+  const hints = [
+    'WASD move · follow the yellow beacon to the mission marker',
+    'Press E near a parked car to steal it',
+    'Drive! W accelerate · S brake · Space handbrake · Z/X/C crew abilities',
+    'M map · P pause · 1-4 weapons · Click to shoot on foot',
+    '',
+  ];
+  const text = hints[state.tutorialStep] || '';
+  el.textContent = text;
+  el.style.display = text ? 'block' : 'none';
 }
 
 export function updateHud(state) {
   drawWantedStars(state);
   drawMissionObjective(state);
+  drawCrewPanel(state);
+  drawMissionTimer(state);
+  drawScorePopups(state);
+  drawDialogue(state);
+  drawRespect(state);
+  drawWeapons(state);
+  drawSplash(state);
+  drawTutorial(state);
   const money = document.getElementById('money');
   if (money) money.textContent = '$' + state.money.toLocaleString('en-US');
   const health = document.getElementById('health-bar');
@@ -93,19 +230,10 @@ export function updateHud(state) {
   if (loc) loc.textContent = state.district || 'Lembayung';
   const radio = document.getElementById('radio');
   if (radio) radio.textContent = '♪ ' + state.radio;
-  const dlg = document.getElementById('dialogue');
-  if (dlg) dlg.textContent = state.dialogue || '';
   const policeList = document.getElementById('police-list');
   if (policeList) {
     policeList.innerHTML = (state.policeUnits || []).slice(0, 6).map((u) =>
       `<div class="police-row"><span>${u.name}</span><span>${u.dist}m</span><span>${u.action}</span></div>`).join('');
   }
-  const weapons = document.getElementById('weapons');
-  if (weapons) {
-    weapons.innerHTML = WEAPONS.map((w, i) =>
-      `<span class="${i === state.weapon ? 'weapon active' : 'weapon'}">${i + 1} ${w}</span>`).join('');
-  }
-  const respect = document.getElementById('respect');
-  if (respect) respect.textContent = `RESPECT ${state.respect} — ${state.respect < 100 ? 'STREET' : state.respect < 300 ? 'FIXER' : 'KINGPIN'}`;
   drawMinimap(state, document.getElementById('minimap'));
 }
