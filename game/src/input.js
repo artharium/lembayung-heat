@@ -1,8 +1,10 @@
 // Keyboard + mouse input. WASD drive/walk, E enter/exit car, Space brake,
-// P pause, M map, R radio, 1-4 weapons, Z/X/C crew abilities, mouse drag
-// orbits the camera, click shoots on foot. takePressed reports keys that
-// went down since the last call (a real edge, not a held key), so one press
-// fires one ability, one radio change, one weapon switch.
+// P pause, M map, R radio, H hide HUD, 1-4 weapons, Z/X/C crew abilities,
+// mouse drag orbits the camera, click shoots on foot. takePressed reports
+// keys that went down since the last call (a real edge, not a held key), so
+// one press fires one ability, one radio change, one weapon switch. held()
+// is the same set without consuming it, for anything that only wants to
+// look — the world reads movement through direction() instead.
 export const ACTION_CONFIRM = 1;
 export const ACTION_PAUSE = 2;
 export const ACTION_MAP = 4;
@@ -52,5 +54,12 @@ export function createInput(canvas) {
   function takePressed() { const p = new Set(pressed); pressed.clear(); return p; }
   function takeDrag() { const d = dragX; dragX = 0; return d; }
   function isDown(code) { return !!keys[code]; }
-  return { direction, takeActions, takePressed, takeDrag, isDown, keys };
+  // A read-only look at the keys pressed since the last takePressed call,
+  // without consuming them. Nothing uses it yet; it is here so a future
+  // hint or combo can peek at the edge set for free.
+  function held() { return new Set(pressed); }
+  // Drop every pending edge and action (used when a screen opens, so a
+  // key pressed on the title does not fire the moment play starts).
+  function clearAll() { pressed.clear(); actions = 0; dragX = 0; }
+  return { direction, takeActions, takePressed, takeDrag, isDown, held, clearAll, keys };
 }
