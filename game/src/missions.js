@@ -1,4 +1,8 @@
-// Missions: start, stage, complete. Key functions first.
+// Missions: start, stage, complete. Key functions first. A mission is a
+// row of the MISSIONS table plus live progress (stage, holdTimer, done);
+// the world steps it, the HUD reads it, and completing a stage pays real
+// money and respect. v3 adds a summary the map screen reads, so the stats
+// there never drift from the mission state.
 import { MISSIONS } from './config.js';
 
 export function startMission(state, id) {
@@ -11,11 +15,15 @@ export function startMission(state, id) {
   return state.mission;
 }
 
+export function stagePay(mission) {
+  return 250 + mission.id * 150;
+}
+
 export function completeMissionStage(state) {
   const m = state.mission;
   if (!m || m.done) return false;
   m.stage += 1;
-  state.money += 250 + m.id * 150;
+  state.money += stagePay(m);
   state.respect += 20;
   if (m.stage >= m.def.stages.length) {
     m.done = true;
@@ -33,6 +41,24 @@ export function completeMissionStage(state) {
 export function currentStage(state) {
   if (!state.mission || state.mission.done) return null;
   return state.mission.def.stages[state.mission.stage];
+}
+
+// One object for the map screen and the HUD: what is done, what is current,
+// and what the current stage asks for — read from the live mission, so the
+// numbers on the map can never disagree with the mission panel.
+export function missionSummary(state) {
+  const m = state.mission;
+  const stage = currentStage(state);
+  return {
+    done: state.missionsDone,
+    total: 8,
+    current: m ? m.id : 0,
+    chapter: m ? m.chapter : '',
+    stageText: stage ? stage.text : 'No active mission',
+    stageNum: m && !m.done ? m.stage + 1 : 0,
+    stageTotal: m ? m.def.stages.length : 0,
+    pay: m ? stagePay(m) : 0,
+  };
 }
 
 export function stepMissions(state, dt) {
