@@ -4,7 +4,9 @@ import { MISSIONS } from './config.js';
 export function startMission(state, id) {
   const def = MISSIONS.find((m) => m.id === id);
   if (!def) return null;
-  state.mission = { id: def.id, name: def.name, verb: def.verb, stage: 0, def, holdTimer: 0, done: false };
+  state.mission = { id: def.id, name: def.name, chapter: def.chapter, verb: def.verb, stage: 0, def, holdTimer: 0, done: false };
+  state.missionElapsed = 0;
+  state.enemiesSpawnedFor = '';
   state.dialogue = `Raka: ${def.name} — ${def.stages[0].text}`;
   return state.mission;
 }
@@ -19,7 +21,9 @@ export function completeMissionStage(state) {
     m.done = true;
     state.missionsDone += 1;
     state.money += 500;
-    state.dialogue = `Mission complete: ${m.name} — $${500} bonus. Nice work, Raka.`;
+    if (m.def.verb === 'Race') state.racesWon += 1;
+    state.splash = { text: `MISSION PASSED — ${m.def.name.toUpperCase()}  +$500`, timer: 3 };
+    state.dialogue = `Mission complete: ${m.name} — $500 bonus. Nice work, Raka.`;
     return 'complete';
   }
   state.dialogue = `Stage ${m.stage + 1}/${m.def.stages.length}: ${m.def.stages[m.stage].text}`;
@@ -42,8 +46,18 @@ export function stepMissions(state, dt) {
     return null;
   }
   if (stage.type === 'collect') {
-    state.mission.holdTimer += dt;
-    if (state.mission.holdTimer > 3) { completeMissionStage(state); return 'collect-done'; }
+    // Hold the target: the timer only runs while the player is at the
+    // vault / cargo (within 12m), and it resets if they leave — the
+    // stage must be held, not just waited out. The text says 10s, so
+    // the timer is 10s. (The first version ran the timer anywhere and
+    // finished in 3s, so the bank job completed while the player was
+    // standing across town.)
+    if (d < 12) {
+      state.mission.holdTimer += dt;
+      if (state.mission.holdTimer > 10) { completeMissionStage(state); return 'collect-done'; }
+    } else {
+      state.mission.holdTimer = 0;
+    }
     return null;
   }
   if (stage.type === 'steal') {
