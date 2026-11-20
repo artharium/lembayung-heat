@@ -1,0 +1,64 @@
+/* Lembayung Heat v2 — all HUD and screen styling. The game page loads this
+   file, so the outline's first file (index.html) shows HTML id and script
+   lines instead of a wall of CSS selectors. */
+html, body { margin: 0; height: 100%; overflow: hidden; background: #1a0f2e; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+#game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+#status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+#hud { position: fixed; inset: 0; pointer-events: none; color: #fff; display: none; }
+.panel { position: absolute; background: rgba(8,18,30,0.82); border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; padding: 10px 14px; }
+#mission-panel { top: 14px; left: 14px; max-width: 420px; }
+#mission-title { font-weight: 800; font-size: 20px; letter-spacing: 0.5px; color: #ffd166; }
+#mission-stage { font-size: 13px; color: #2ec4b6; font-weight: 700; }
+#mission-objective { font-size: 16px; margin-top: 4px; }
+#mission-timer { font-size: 15px; font-weight: 800; color: #fff; margin-top: 6px; }
+#game-clock { font-size: 13px; color: #ccc; }
+#top-right { top: 14px; right: 14px; text-align: right; }
+#money { font-size: 26px; font-weight: 800; color: #06d6a0; }
+#wanted { font-size: 26px; letter-spacing: 4px; }
+#weapons { margin-top: 6px; font-size: 13px; }
+.weapon { opacity: 0.6; margin-left: 8px; } .weapon.active { opacity: 1; color: #ffd166; font-weight: 700; }
+#respect { font-size: 13px; color: #ffb703; margin-top: 4px; }
+#xp-bar { height: 6px; background: #333; border-radius: 3px; overflow: hidden; margin-top: 4px; }
+#xp-fill { height: 100%; background: #ffb703; width: 0%; }
+#police-panel { top: 170px; right: 14px; width: 260px; }
+#police-panel h3 { margin: 0 0 6px; font-size: 14px; color: #ff6b6b; }
+.police-row { display: flex; justify-content: space-between; font-size: 13px; padding: 2px 0; }
+#crew-panel { top: 380px; right: 14px; width: 260px; }
+#crew-panel h3 { margin: 0 0 6px; font-size: 14px; color: #2ec4b6; }
+.crew-row { display: flex; align-items: center; gap: 6px; font-size: 13px; padding: 3px 0; }
+.crew-face { width: 24px; height: 24px; border-radius: 50%; background: #ffd166; color: #222; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.crew-name { font-weight: 700; }
+.crew-ability { color: #ccc; flex: 1; }
+.crew-key { color: #888; }
+.crew-state { font-weight: 800; color: #ffb703; }
+.crew-state.ready { color: #06d6a0; }
+#score-popups { position: absolute; top: 560px; right: 20px; text-align: right; }
+.popup { font-size: 18px; font-weight: 800; color: #ffd166; text-shadow: 0 2px 6px rgba(0,0,0,0.8); margin: 2px 0; }
+#minimap-wrap { position: absolute; bottom: 14px; left: 14px; }
+#minimap { width: 180px; height: 180px; border-radius: 50%; border: 3px solid #2ec4b6; background: rgba(10,20,30,0.85); }
+#health-wrap { bottom: 14px; left: 210px; width: 220px; font-size: 13px; }
+.bar { height: 10px; background: #333; border-radius: 5px; overflow: hidden; margin: 3px 0 6px; }
+#health-bar { height: 100%; background: #06d6a0; width: 100%; }
+#armour-bar { height: 100%; background: #118ab2; width: 50%; }
+#bottom-right { position: absolute; bottom: 14px; right: 14px; text-align: right; background: rgba(8,18,30,0.82); border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; padding: 10px 14px; }
+#speed { font-size: 34px; font-weight: 800; }
+#car-name { font-size: 16px; color: #ffd166; font-weight: 700; }
+#location { font-size: 13px; color: #ccc; }
+#radio { font-size: 14px; color: #ff8fa3; margin-top: 4px; }
+#dialogue { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); max-width: 620px; background: rgba(8,18,30,0.88); border-radius: 8px; padding: 10px 16px; font-size: 16px; text-align: center; display: flex; align-items: center; gap: 10px; }
+#dlg-face { width: 34px; height: 34px; border-radius: 50%; background: #ef476f; color: #fff; font-weight: 800; font-size: 18px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+#dlg-name { font-weight: 800; color: #ffd166; flex: none; }
+#dlg-text { text-align: left; }
+#tutorial { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); background: rgba(8,18,30,0.82); border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; padding: 8px 16px; font-size: 14px; color: #ffd166; }
+#splash { position: absolute; top: 38%; left: 50%; transform: translateX(-50%); font-size: 40px; font-weight: 800; color: #ffd166; text-shadow: 0 3px 10px rgba(0,0,0,0.9); display: none; white-space: nowrap; }
+.screen { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(10,8,28,0.72); color: #fff; z-index: 10; }
+#title-screen { background: linear-gradient(rgba(10,8,28,0.22), rgba(10,8,28,0.62)); }
+.screen-box { background: rgba(8,18,30,0.94); border: 2px solid #ffd166; border-radius: 14px; padding: 28px 36px; max-width: 760px; width: 90%; text-align: center; }
+.screen-box h1 { margin: 0; font-size: 44px; letter-spacing: 2px; color: #ffd166; }
+.screen-box h2 { margin: 4px 0 12px; font-size: 18px; color: #2ec4b6; font-weight: 600; }
+.screen-box p { font-size: 15px; line-height: 1.5; color: #ddd; }
+.screen-box button { pointer-events: auto; font-size: 18px; font-weight: 700; padding: 10px 22px; margin: 6px; border-radius: 8px; border: none; background: #ffd166; color: #222; cursor: pointer; }
+.screen-box button:disabled { opacity: 0.45; cursor: default; }
+.save-slot { background: rgba(255,255,255,0.08); border-radius: 6px; padding: 8px; margin: 5px 0; font-size: 14px; }
+#map-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; text-align: left; font-size: 15px; margin-top: 10px; }
+#big-map { width: 100%; max-width: 640px; height: 300px; border: 2px solid #2ec4b6; border-radius: 8px; background: #0b1c2c; }
