@@ -1,5 +1,10 @@
-// Screens: title, pause, map/stats. Key functions first.
+// Screens: title, pause, map/stats. Key functions first. The map screen
+// draws the city from the live state (roads, districts, markers, police)
+// and lists the career stats from the same state, so the numbers are real
+// counters, not staged text. v3 adds the takedown and shots-fired counters
+// the world now keeps.
 import { DISTRICTS, MISSIONS, EXPORT_ZONE } from './config.js';
+import { missionSummary } from './missions.js';
 
 export function showTitleScreen(state) {
   const el = document.getElementById('title-screen');
@@ -10,27 +15,34 @@ export function showTitleScreen(state) {
   return el;
 }
 
+function careerStats(state) {
+  const collected = 20 - (Array.isArray(state.collectibles) ? state.collectibles.length : 0);
+  const completion = Math.round((state.missionsDone / 8) * 60 + (collected / 20) * 15 + (state.racesWon / 4) * 15 + (state.stuntJumps / 8) * 10);
+  return [
+    `STORY MISSIONS ${state.missionsDone}/8`,
+    `STREET RACES ${state.racesWon}/4`,
+    `STUNT JUMPS ${state.stuntJumps}/8`,
+    `COLLECTIBLES ${collected}/20`,
+    `EXPORT LIST ${state.exportsDone}/5`,
+    `DISTRICT JOBS ${state.districtJobs}/7`,
+    `CARS STOLEN ${state.carsStolen}`,
+    `COPS ESCAPED ${state.copsEscaped}`,
+    `TAKEDOWNS ${state.takedowns || 0}`,
+    `SHOTS FIRED ${state.shotsFired || 0}`,
+    `MONEY $${state.money.toLocaleString('en-US')}`,
+    `RESPECT ${state.respect}`,
+    `COMPLETION ${completion}%`,
+  ];
+}
+
 export function showMapScreen(state) {
   const el = document.getElementById('map-screen');
   if (!el) return null;
   el.style.display = 'flex';
   state.mapOpened = true;
-  const collected = 20 - (Array.isArray(state.collectibles) ? state.collectibles.length : 0);
   const stats = document.getElementById('map-stats');
   if (stats) {
-    stats.innerHTML = [
-      `STORY MISSIONS ${state.missionsDone}/8`,
-      `STREET RACES ${state.racesWon}/4`,
-      `STUNT JUMPS ${state.stuntJumps}/8`,
-      `COLLECTIBLES ${collected}/20`,
-      `EXPORT LIST ${state.exportsDone}/5`,
-      `DISTRICT JOBS ${state.districtJobs}/7`,
-      `CARS STOLEN ${state.carsStolen}`,
-      `COPS ESCAPED ${state.copsEscaped}`,
-      `MONEY $${state.money.toLocaleString('en-US')}`,
-      `RESPECT ${state.respect}`,
-      `COMPLETION ${Math.round((state.missionsDone / 8) * 60 + (collected / 20) * 15 + (state.racesWon / 4) * 15 + (state.stuntJumps / 8) * 10)}%`,
-    ].map((s) => `<div>${s}</div>`).join('');
+    stats.innerHTML = careerStats(state).map((s) => `<div>${s}</div>`).join('');
   }
   const mapCanvas = document.getElementById('big-map');
   if (mapCanvas) drawBigMap(state, mapCanvas);
@@ -101,6 +113,7 @@ export function drawBigMap(state, canvas) {
     ctx.fillStyle = '#111111';
     ctx.fillText(String(m.id), x - 3.5, y + 4);
   });
+  const summary = missionSummary(state);
   const stage = state.mission && !state.mission.done ? state.mission.def.stages[state.mission.stage] : null;
   if (stage) {
     const [x, y] = toMap(stage.x, stage.z);
@@ -123,6 +136,7 @@ export function drawBigMap(state, canvas) {
   const [px, py] = toMap(state.player.x, state.player.z);
   ctx.fillStyle = '#ffffff';
   ctx.beginPath(); ctx.moveTo(px, py - 10); ctx.lineTo(px + 8, py + 8); ctx.lineTo(px - 8, py + 8); ctx.closePath(); ctx.fill();
+  return summary;
 }
 
 export function updateSaveSlots(state) {
