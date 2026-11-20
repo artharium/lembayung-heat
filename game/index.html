@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Lembayung Heat — an original open-world crime game in the coastal city of Lembayung at dusk. Drive, steal, escape the police, finish 8 story missions.">
 <link rel="icon" type="image/x-icon" href="./favicon.ico">
 <link rel="stylesheet" href="./src/style.css">
 <title>Lembayung Heat — Open-World Crime in Lembayung</title>
@@ -10,6 +11,7 @@
 <body>
 <canvas id="game" aria-label="Lembayung Heat: drive and walk through the coastal city of Lembayung, steal cars, escape the police and finish 8 story missions"></canvas>
 <p id="status" role="status" aria-live="polite"></p>
+<noscript><p class="noscript-note">Lembayung Heat needs JavaScript to run.</p></noscript>
 
 <div id="hud">
   <div class="panel" id="mission-panel">
@@ -56,7 +58,7 @@
     <h1>LEMBAYUNG HEAT</h1>
     <h2>Open-world crime in Lembayung — a sun-soaked coastal city at dusk</h2>
     <p>Raka the courier is back in Lembayung. Eight story missions, car chases, police escapes, street races and a harbour heist. Drive, steal, run — and stay out of the Lembayung PD's sight.</p>
-    <p>WASD move / drive &nbsp;·&nbsp; E enter or steal a car &nbsp;·&nbsp; Click shoot on foot &nbsp;·&nbsp; Z/X/C crew abilities &nbsp;·&nbsp; P pause &nbsp;·&nbsp; M map &nbsp;·&nbsp; R radio &nbsp;·&nbsp; 1-4 weapons</p>
+    <p>WASD move / drive &nbsp;·&nbsp; E enter or steal a car &nbsp;·&nbsp; Click shoot on foot &nbsp;·&nbsp; Z/X/C crew abilities &nbsp;·&nbsp; P pause &nbsp;·&nbsp; M map &nbsp;·&nbsp; R radio &nbsp;·&nbsp; H hide HUD &nbsp;·&nbsp; 1-4 weapons</p>
     <div id="save-slots"></div>
     <button id="btn-continue">CONTINUE</button>
     <button id="btn-new">NEW GAME</button>
@@ -67,7 +69,7 @@
 <div class="screen" id="pause-screen">
   <div class="screen-box">
     <h1>PAUSED</h1>
-    <p>WASD move / drive · E enter car · M map · P resume · R radio · Z/X/C crew</p>
+    <p>WASD move / drive · E enter car · M map · P resume · R radio · Z/X/C crew · H hide HUD</p>
     <p>Your progress autosaves after every mission.</p>
     <button onclick="document.getElementById('pause-screen').style.display='none'">RESUME (P)</button>
   </div>
