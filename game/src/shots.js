@@ -1,13 +1,17 @@
-// Screenshot scenes behind ?shot=cover|chase|onfoot|map|title.
+// Screenshot scenes behind ?shot=cover|chase|onfoot|map|title|race.
 // Each one plays the real rules forward from a fresh world for a fixed
 // number of steps, steered by a simple autopilot, so the frame is what a
 // short game really looks like and the same seed always gives the same frame.
 // v3 pulls the cover traffic close (five cars in the frame, from the
 // COVER_TRAFFIC table) and the on-foot enemies closer, so their billboard
 // bars read big — one of them already hurt, amber, under half.
-import { STEP, COVER_TRAFFIC } from './config.js';
+// v4 adds the race shot: a real Pier Sprint driven for real at night, and
+// the on-foot enemies now carry their v4 types (a shotgun cop and a riot
+// cop), so the frame shows the new systems instead of the old grunts.
+import { STEP, COVER_TRAFFIC, ENEMY_TYPES } from './config.js';
 import { startMission } from './missions.js';
 import { startPoliceChase } from './police.js';
+import { startRace } from './races.js';
 import { SCREEN_MAP, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
 
 // A fake input that walks on foot toward the current stage target. The
@@ -23,6 +27,9 @@ function walkInput(state) {
       return { x: dx / d, y: -dz / d };
     },
     isDown: () => false,
+    // The world reads isAnyDown for the run key on foot; the fake input
+    // never runs, but the method must exist or the step throws.
+    isAnyDown: () => false,
   };
 }
 
@@ -40,12 +47,21 @@ function stageTitle(world, state) {
 function stageMap(state) {
   // A mid-game map: values reachable by real play (5 missions done, a
   // race won, 2 exports, 3 district jobs, 8 geckos found, 3 takedowns).
+  // v4 adds the garage and the race record: two cars owned (the Kancil
+  // and the Comet, the Comet with one speed level) and a Pier Sprint win,
+  // so the map shows GARAGE 2/6 CARS and BEST RACE 1ST · PIER SPRINT.
   state.missionsDone = 5; state.racesWon = 1; state.stuntJumps = 5;
   state.collectibles = state.collectibles.slice(0, 12);
   state.money = 18450; state.respect = 290;
   state.exportsDone = 2; state.districtJobs = 3;
   state.carsStolen = 4; state.copsEscaped = 2;
   state.takedowns = 3; state.shotsFired = 18;
+  state.garage = {
+    owned: [0, 2], selected: 2,
+    upgrades: { 0: { speed: 0, handling: 0, armour: 0 }, 2: { speed: 1, handling: 0, armour: 0 } },
+    paint: {},
+  };
+  state.raceResults = { 1: { best: 1, wins: 1, runs: 2, bestTime: 74.3 }, 2: { best: 2, wins: 0, runs: 1, bestTime: 81.5 } };
   state.jobMarkers[0].taken = true;
   state.jobMarkers[1].taken = true;
   state.jobMarkers[4].taken = true;
@@ -80,7 +96,7 @@ function stageOnFoot(world, state) {
   state.enemiesSpawnedFor = '5-0';
   // Walk north-west a little so the market stalls are in frame ahead
   // and the player reaches Mira (12m away, stage 1 target).
-  for (let i = 0; i < 60; i += 1) world.step(STEP, { direction: () => ({ x: -0.3, y: 1 }), isDown: () => false }, 0);
+  for (let i = 0; i < 60; i += 1) world.step(STEP, { direction: () => ({ x: -0.3, y: 1 }), isDown: () => false, isAnyDown: () => false }, 0);
   // The walk above reaches stage 1's target (Mira, 12m away), so the
   // mission auto-advanced to stage 2 ("Drive Mira...") — which is a
   // driving stage and did not match this walking shot. Reset it back to
@@ -103,18 +119,22 @@ function stageOnFoot(world, state) {
   // that). Each enemy is 0.4 rad either side of the axis — 0.19 rad left
   // them peeking out from behind his shoulders — so both read clear of
   // him. One already hurt (health 45, amber bar under half), one fresh.
+  // v4 types: the hurt one is a shotgun cop (45 of 80), the fresh one a
+  // riot cop (220 of 220, bigger, near-black) — the fight reads as the new
+  // enemy types, not two identical grunts.
   // The muzzle flash is set after the walk too, or the walk's own steps
   // burn it out before the paint.
   const fh = state.player.heading;
   const fwd = { x: Math.sin(fh), z: Math.cos(fh) };
   const rgt = { x: Math.cos(fh), z: -Math.sin(fh) };
-  const placeEnemy = (angle, health) => {
+  const placeEnemy = (angle, type, health) => {
+    const def = ENEMY_TYPES[type] || ENEMY_TYPES.grunt;
     const dir = { x: fwd.x * Math.cos(angle) + rgt.x * Math.sin(angle), z: fwd.z * Math.cos(angle) + rgt.z * Math.sin(angle) };
-    return { x: state.player.x + dir.x * 6.5, z: state.player.z + dir.z * 6.5, health, maxHealth: 100, alive: true, mesh: null, strafeDir: 1, strafeTimer: 2 };
+    return { x: state.player.x + dir.x * 6.5, z: state.player.z + dir.z * 6.5, type, def, health, maxHealth: def.hp, alive: true, mesh: null, strafeDir: 1, strafeTimer: 2 };
   };
   state.enemies = [
-    placeEnemy(state.cameraAngle - 0.4, 45),
-    placeEnemy(state.cameraAngle + 0.4, 100),
+    placeEnemy(state.cameraAngle - 0.4, 'shotgun', 45),
+    placeEnemy(state.cameraAngle + 0.4, 'riot', 220),
   ];
   state.muzzleTimer = 0.09;
   // A real market crowd in the frame, ahead of the player: six
@@ -125,6 +145,59 @@ function stageOnFoot(world, state) {
   marketPeds.forEach(([x, z], i) => {
     if (state.pedestrians[i]) { state.pedestrians[i].x = x; state.pedestrians[i].z = z; }
   });
+  return { screen: SCREEN_PLAY, best: 0 };
+}
+
+function stageRace(world, state) {
+  // Pier Sprint at night: a real race, driven for real. The player starts
+  // on the pad, the countdown runs, and the checkpoint-seeking autopilot
+  // drives the course north on the beach road, so the frame shows a race
+  // mid-flight (4th place, CP 3/4) instead of a posed start line. The
+  // clock is set to 21:40 after the drive, so the night sky, the street
+  // lamps and the headlight cones are all on. All three rivals are nudged
+  // ahead of the player, staggered across the road at the player's
+  // checkpoint, so the live place reads 4th from real progress, not from
+  // a staged number — the race HUD, the minimap diamonds and the
+  // checkpoint marker are all the same state the player would see mid-race.
+  state.player.x = -168; state.player.z = 80;
+  state.player.heading = Math.PI; state.player.speed = 0;
+  state.inCar = true; state.carIndex = 2; state.carName = 'Elang Comet';
+  state.cameraAngle = 0.45;
+  state.money = 18450; state.respect = 290; state.health = 82; state.armour = 64;
+  state.ammo = [24, 60, 12, 0];
+  state.wanted = 0;
+  const race = startRace(state, 1, state.scene, state.THREE);
+  if (!race) return { screen: SCREEN_PLAY, best: 0 };
+  const drive = {
+    direction: () => {
+      const cps = race.def.checkpoints;
+      const cp = cps[Math.min(race.nextCp, cps.length - 1)];
+      const want = Math.atan2(cp.x - state.player.x, cp.z - state.player.z);
+      let turn = want - state.player.heading;
+      while (turn > Math.PI) turn -= Math.PI * 2;
+      while (turn < -Math.PI) turn += Math.PI * 2;
+      return { x: Math.max(-1, Math.min(1, -turn * 1.5)), y: 1 };
+    },
+    isDown: () => false,
+    isAnyDown: () => false,
+  };
+  let steps = 0;
+  for (; steps < 1200 && race.nextCp < 2; steps += 1) world.step(STEP, drive, 0);
+  // The course runs north on x=-168, so "ahead" is -z and "behind" is +z.
+  // All three rivals sit ahead of the player, fanned across the road so
+  // each is visible in the frame, at the player's checkpoint.
+  const placeRival = (r, along, lane) => {
+    if (!r) return;
+    r.x = state.player.x + lane;
+    r.z = state.player.z - along;
+    r.cp = race.nextCp;
+    r.heading = Math.PI;
+  };
+  placeRival(race.rivals[0], 16, 0);
+  placeRival(race.rivals[1], 28, -5);
+  placeRival(race.rivals[2], 42, 5);
+  state.clockMin = 21 * 60 + 40;
+  state.dialogue = 'Mira: Last place, Raka. Three cars to catch — flat out!';
   return { screen: SCREEN_PLAY, best: 0 };
 }
 
@@ -172,6 +245,7 @@ function stageCover(world, state) {
       return { x: 0, y: 1 };
     },
     isDown: () => false,
+    isAnyDown: () => false,
   };
   for (let i = 0; i < 150; i += 1) world.step(STEP, drive, 0);
   // Reposition for the frame: car back on the road centre, heading north,
@@ -227,5 +301,6 @@ export function stageShot(name, world, state) {
   if (name === 'title') return stageTitle(w, state);
   if (name === 'map') return stageMap(state);
   if (name === 'onfoot') return stageOnFoot(w, state);
+  if (name === 'race') return stageRace(w, state);
   return stageCover(w, state);
 }
