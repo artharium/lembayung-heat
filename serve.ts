@@ -3,7 +3,7 @@
 // It sends the MIME types a browser game needs, refuses any path outside game/, answers a
 // /healthz probe for scripts that want to know it is up, and otherwise does nothing clever:
 // this is a development convenience, not a web server for the internet.
-import { createReadStream, statSync } from 'node:fs';
+import { createReadStream, readFileSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -57,6 +57,19 @@ createServer((request, response) => {
   // before it opens the game.
   if (pathname === '/healthz') {
     response.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' }).end('ok');
+    return;
+  }
+  // v4: the shot list for the screenshot tooling — GET /shots answers the
+  // repo's shots.json (the four staged scenes and their ?shot queries),
+  // so a harness can read the list over HTTP instead of from disk, and a
+  // missing or renamed shot shows up here before a screenshot run does.
+  if (pathname === '/shots') {
+    try {
+      const list = readFileSync(resolve(fileURLToPath(new URL('./shots.json', import.meta.url))), 'utf-8');
+      response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' }).end(list);
+    } catch {
+      response.writeHead(404).end('shots.json not found');
+    }
     return;
   }
   if (pathname.endsWith('/')) pathname += 'index.html';
