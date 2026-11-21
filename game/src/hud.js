@@ -5,6 +5,7 @@
 // tutorial pill shows state.hint, which the world picks from the live
 // situation, so its text always fits the moment.
 import { DISTRICTS, WEAPONS, CREW, RANKS, EXPORT_ZONE, HINTS } from './config.js';
+import { raceStatus } from './races.js';
 
 export function drawWantedStars(state) {
   const el = document.getElementById('wanted');
@@ -66,6 +67,20 @@ export function drawMinimap(state, canvas) {
     const [x, y] = toMap(stage.x, stage.z);
     ctx.fillStyle = '#ffea00';
     ctx.beginPath(); ctx.moveTo(x, y - 7); ctx.lineTo(x + 6, y); ctx.lineTo(x, y + 7); ctx.lineTo(x - 6, y); ctx.closePath(); ctx.fill();
+  }
+  // Race checkpoints: orange diamonds for the course, purple dots for the
+  // rivals, so a race can be read on the minimap without opening the map.
+  if (state.race) {
+    for (const cp of state.race.def.checkpoints) {
+      const [x, y] = toMap(cp.x, cp.z);
+      ctx.fillStyle = '#ff8500';
+      ctx.beginPath(); ctx.moveTo(x, y - 5); ctx.lineTo(x + 4, y); ctx.lineTo(x, y + 5); ctx.lineTo(x - 4, y); ctx.closePath(); ctx.fill();
+    }
+    for (const r of state.race.rivals) {
+      const [x, y] = toMap(r.x, r.z);
+      ctx.fillStyle = '#b5179e';
+      ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+    }
   }
   // Police: red dots — big diamonds while Eyes Out marks them.
   const marked = state.crew && state.crew.eyesOut.active > 0;
@@ -151,14 +166,42 @@ export function drawScorePopups(state) {
     .map((p) => `<div class="popup">+$${p.amount} ${p.text}</div>`).join('');
 }
 
+// Who is talking, in colour: each crew member has a portrait colour, so
+// the dialogue box reads as a conversation, not one flat line. The face
+// is the speaker's initial on their colour; a queued line shows a small
+// "more" mark, so the player knows another line is coming.
+const SPEAKER_COLORS = { Raka: '#118ab2', Mira: '#ef476f', Dimas: '#2ec4b6', Sari: '#ffd166', Boss: '#ff2222', Dispatch: '#ff6b6b' };
+
 export function drawDialogue(state) {
   const text = document.getElementById('dlg-text');
   if (text) text.textContent = state.dialogue || '';
   const face = document.getElementById('dlg-face');
   const name = document.getElementById('dlg-name');
   const speaker = (state.dialogue || '').split(':')[0].trim();
-  if (face) face.textContent = speaker ? speaker[0] : 'R';
-  if (name) name.textContent = speaker || 'Raka';
+  const color = SPEAKER_COLORS[speaker] || '#118ab2';
+  if (face) {
+    face.textContent = speaker ? speaker[0] : 'R';
+    face.style.background = color;
+    face.style.color = speaker === 'Sari' ? '#222' : '#fff';
+  }
+  if (name) {
+    name.textContent = (state.dlgQueue && state.dlgQueue.length ? '▸ ' : '') + (speaker || 'Raka');
+  }
+}
+
+// The race panel: live place, checkpoint and time while racing, the
+// countdown before the flag, and the finished result after it. Hidden
+// when no race is running — the panel is race state, not decoration.
+export function drawRaceHud(state) {
+  const el = document.getElementById('race-hud');
+  if (!el) return;
+  const status = raceStatus(state);
+  if (!status) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  const line = document.getElementById('race-line');
+  if (line) line.textContent = status.line;
+  const sub = document.getElementById('race-sub');
+  if (sub) sub.textContent = status.sub;
 }
 
 function rankFor(respect) {
@@ -223,6 +266,7 @@ export function updateHud(state) {
   drawMissionObjective(state);
   drawCrewPanel(state);
   drawMissionTimer(state);
+  drawRaceHud(state);
   drawScorePopups(state);
   drawDialogue(state);
   drawRespect(state);
@@ -239,6 +283,12 @@ export function updateHud(state) {
   // On foot there is no KM/H: the old "22 KM/H" while walking was a lie
   // in the frame. In a car it still reads the speed.
   if (speed) speed.textContent = state.inCar ? Math.round(Math.abs(state.speedKmh || 0)) + ' KM/H' : 'ON FOOT';
+  // Nitro tank: the bar drains while boosting and refills after, and the
+  // whole row hides on foot, where there is no tank to show.
+  const nitroBar = document.getElementById('nitro-bar');
+  if (nitroBar) nitroBar.style.width = `${Math.max(0, Math.min(100, state.nitro || 0))}%`;
+  const nitroWrap = document.getElementById('nitro-wrap');
+  if (nitroWrap) nitroWrap.style.display = state.inCar ? 'block' : 'none';
   const car = document.getElementById('car-name');
   if (car) car.textContent = state.inCar ? state.carName : 'ON FOOT — RAKA';
   const loc = document.getElementById('location');
