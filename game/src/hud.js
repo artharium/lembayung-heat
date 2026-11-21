@@ -6,6 +6,11 @@
 // situation, so its text always fits the moment.
 import { DISTRICTS, WEAPONS, CREW, RANKS, EXPORT_ZONE, HINTS } from './config.js';
 import { raceStatus } from './races.js';
+import { jobHudLine } from './jobs.js';
+import { packagePingLine } from './collectibles.js';
+import { stuntHudLine } from './stunts.js';
+import { heatHudLine } from './heat.js';
+import { epilogueHudLine } from './story2.js';
 
 export function drawWantedStars(state) {
   const el = document.getElementById('wanted');
@@ -156,6 +161,23 @@ export function drawMissionTimer(state) {
     const hh = String(Math.floor(mins / 60)).padStart(2, '0');
     const mm = String(mins % 60).padStart(2, '0');
     clock.textContent = `DAY ${state.day || 1} · ${hh}:${mm}`;
+    if (state.weather) clock.textContent += ` · ${state.weather.label}`;
+    const jobTracker = document.getElementById('job-tracker');
+    if (jobTracker) jobTracker.textContent = jobHudLine(state);
+    const stuntLine = document.getElementById('stunt-line');
+    if (stuntLine) stuntLine.textContent = stuntHudLine(state);
+    const heatLine = document.getElementById('heat-line');
+    if (heatLine) heatLine.textContent = heatHudLine(state);
+    const pkgLine = document.getElementById('package-line');
+    if (pkgLine) pkgLine.textContent = packagePingLine(state);
+    const epiLine = document.getElementById('epilogue-line');
+    if (epiLine) epiLine.textContent = epilogueHudLine(state);
+    const safeOverlay = document.getElementById('safehouse-overlay');
+    if (safeOverlay) {
+      const layingLow = state.heatState && state.heatState.layingLow;
+      safeOverlay.style.display = layingLow ? 'flex' : 'none';
+      if (layingLow) safeOverlay.textContent = `LAYING LOW... ${Math.ceil(layingLow.timer)}s — STAY PUT`;
+    }
   }
 }
 
