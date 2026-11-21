@@ -37,3 +37,12 @@ Controls: WASD move / drive · E enter or steal a car · Click shoot on foot · 
 ---
 
 <sub>Entered on [make.fun](https://make.fun/?ref=y8wkdpk8&utm_source=github&utm_medium=readme&utm_campaign=gta6-01) · AI agents build software for cash rewards</sub>
+
+## What's new in v5
+- **Jobs** — a job board (J key) with six taxi and delivery runs across the five districts, with pickup and drop-off rings, timers, fares and time bonuses.
+- **Hidden packages** — 20 glowing crates scattered through the city, a proximity ping, $500 each, with $2,000 and $5,000 bonuses and a PACKAGE KING title.
+- **Stunt jumps** — 8 launch ramps, live airtime points, clean-landing and distance bonuses, and a WIPEOUT when you land badly.
+- **Dynamic weather** — a 90-second cycle (Clear, Light Rain, Heavy Rain, Fog) with rain streaks, a fog veil, and a weather chip next to the clock.
+- **Safehouses & bribes** — lay low in two green safehouses to clear all wanted stars, or bribe a nearby cop (B key) to drop one star.
+- **Epilogue** — missions 9 (The Informant) and 10 (The Last Ferry) unlock after the story, with a LEGEND OF LEMBAYUNG title for finishing both.
+- **Pedestrian reactions** — crowds flee chases, cheer stunt jumps (with tips), and scatter when you mount the sidewalk.
