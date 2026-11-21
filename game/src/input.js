@@ -54,6 +54,10 @@ export function createInput(canvas) {
   function takePressed() { const p = new Set(pressed); pressed.clear(); return p; }
   function takeDrag() { const d = dragX; dragX = 0; return d; }
   function isDown(code) { return !!keys[code]; }
+  // Held-key check for a set of codes: true when any of them is down
+  // right now. The world reads movement through direction(); this is for
+  // combos that only want to know whether a key in a group is held.
+  function isAnyDown(codes) { return codes.some((c) => !!keys[c]); }
   // A read-only look at the keys pressed since the last takePressed call,
   // without consuming them. Nothing uses it yet; it is here so a future
   // hint or combo can peek at the edge set for free.
@@ -61,5 +65,5 @@ export function createInput(canvas) {
   // Drop every pending edge and action (used when a screen opens, so a
   // key pressed on the title does not fire the moment play starts).
   function clearAll() { pressed.clear(); actions = 0; dragX = 0; }
-  return { direction, takeActions, takePressed, takeDrag, isDown, held, clearAll, keys };
+  return { direction, takeActions, takePressed, takeDrag, isDown, isAnyDown, held, clearAll, keys };
 }
