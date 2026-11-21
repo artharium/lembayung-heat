@@ -63,6 +63,126 @@ export const CREW = [
   { name: 'Sari', role: 'Mechanic', ability: 'Swap Plates', key: 'C', cooldown: 60, text: 'Sari: Plates swapped. They lost your tag.' },
 ];
 
+// v4 street races: four courses, one per district, each a run through four
+// checkpoints on the road grid (roads sit on the 42m grid, so every point
+// below is on a road). Rivals drive the same checkpoints for real — their
+// speed is the player's effective top speed times their skill, so a race
+// stays winnable in any car and losable to a faster rival. Prizes are paid
+// by finishing place; first place also counts as a street race won.
+export const RACE_DEFS = [
+  { id: 1, name: 'Pier Sprint', district: 'Pelabuhan', start: { x: -168, z: 80 },
+    checkpoints: [{ x: -168, z: 20 }, { x: -168, z: -60 }, { x: -168, z: -120 }, { x: -168, z: -160 }],
+    rivals: [
+      { name: 'Vex', skill: 0.9, color: 0xff006e },
+      { name: 'Rook', skill: 0.98, color: 0x8338ec },
+      { name: 'Nadia', skill: 1.06, color: 0x06d6a0 } ] },
+  { id: 2, name: 'Downtown Loop', district: 'Downtown', start: { x: 84, z: -42 },
+    checkpoints: [{ x: 84, z: -126 }, { x: 0, z: -126 }, { x: 0, z: -42 }, { x: 84, z: -42 }],
+    rivals: [
+      { name: 'Kilo', skill: 0.92, color: 0xffb703 },
+      { name: 'Vex', skill: 1.0, color: 0xff006e },
+      { name: 'Mara', skill: 1.08, color: 0x118ab2 } ] },
+  { id: 3, name: 'Market Run', district: 'Pasar Malam', start: { x: -84, z: 126 },
+    checkpoints: [{ x: 0, z: 126 }, { x: 84, z: 126 }, { x: 84, z: 42 }, { x: -84, z: 42 }],
+    rivals: [
+      { name: 'Rook', skill: 0.9, color: 0x8338ec },
+      { name: 'Nadia', skill: 1.02, color: 0x06d6a0 },
+      { name: 'Kilo', skill: 1.1, color: 0xffb703 } ] },
+  { id: 4, name: 'Bukit Climb', district: 'Bukit', start: { x: 168, z: 126 },
+    checkpoints: [{ x: 168, z: 42 }, { x: 126, z: 42 }, { x: 126, z: -42 }, { x: 168, z: -42 }],
+    rivals: [
+      { name: 'Mara', skill: 0.94, color: 0x118ab2 },
+      { name: 'Vex', skill: 1.04, color: 0xff006e },
+      { name: 'Nadia', skill: 1.12, color: 0x06d6a0 } ] },
+];
+
+// v4 race prizes by finishing place (1st to 4th). First place also pays
+// respect; last place pays nothing, so losing a race costs the entry, not
+// the wallet — there is no entry fee, only the prize you miss.
+export const RACE_PRIZES = [800, 500, 250, 0];
+export const RACE_RESPECT = [30, 20, 10, 0];
+
+// v4 garage: buying and tuning real cars with real money. Car prices are
+// index-aligned with CARS (the Kancil is already owned). Each upgrade stat
+// has three levels with rising prices; paint is a flat $150 per repaint.
+// Upgrades really change the car: +3 top speed, +0.08 handling and +25
+// armour per level, applied to the car the player is driving.
+export const GARAGE_PRICES = {
+  cars: [0, 1500, 3000, 2200, 1800, 2600],
+  upgrades: {
+    speed: [400, 900, 1600],
+    handling: [350, 800, 1400],
+    armour: [300, 700, 1300],
+  },
+  paint: 150,
+  paints: [0xffb703, 0xef476f, 0x118ab2, 0x06d6a0, 0xffd166, 0xf2f2f2, 0x8338ec, 0x222222],
+};
+
+// v4 enemy types: the market fight is no longer three identical grunts.
+// A shotgun cop hits hard up close, a riot cop is slow but takes three
+// times the punishment, a grunt is the fast baseline. Type decides health,
+// speed, damage, reach and colour — the render reads it, the world fights it.
+export const ENEMY_TYPES = {
+  grunt: { hp: 100, speed: 3.2, damage: 3, range: 20, color: 0x9d0208, label: 'GRUNT' },
+  shotgun: { hp: 80, speed: 2.6, damage: 9, range: 12, color: 0x5a189a, label: 'SHOTGUN' },
+  riot: { hp: 220, speed: 2.0, damage: 5, range: 6, color: 0x2b2d42, label: 'RIOT' },
+};
+
+// v4 dialogue: a real queue, not one flat line. Each mission opens with
+// two lines (who says it, in character) and later stages queue their own
+// line when the stage starts. The HUD shows the head of the queue with
+// the speaker's portrait and name; the queue advances on its own timer,
+// so a line is never stuck on screen and never overwritten mid-sentence.
+export const DIALOGUE = {
+  1: { intro: [
+    { who: 'Raka', text: 'First job back in Lembayung. Pick up the package, no fuss.' },
+    { who: 'Mira', text: 'The market crowd is thick tonight. Keep your head down, Raka.' } ],
+    stages: { 2: [{ who: 'Mira', text: 'Package secured. Downtown tower, second floor.' }],
+      3: [{ who: 'Raka', text: 'One drop left, then the garage. Almost home.' }] } },
+  2: { intro: [
+    { who: 'Dimas', text: 'That Comet on Pantai road is unlocked. Take it quiet.' },
+    { who: 'Raka', text: 'One hotwire and we are rolling.' } ],
+    stages: { 2: [{ who: 'Dimas', text: 'You have it. Garage, and do not let a unit see you.' }] } },
+  3: { intro: [
+    { who: 'Sari', text: 'The PD is all over Downtown. Lose them, then come home.' },
+    { who: 'Raka', text: 'They will have to catch me first.' } ],
+    stages: { 2: [{ who: 'Sari', text: 'Clear air. Bukit safehouse, now.' }] } },
+  4: { intro: [
+    { who: 'Mira', text: 'Beach Sprint — three checkpoints, no cops, just speed.' },
+    { who: 'Raka', text: 'Let us see what this car can do.' } ],
+    stages: { 2: [{ who: 'Mira', text: 'Second checkpoint. The beach is yours.' }],
+      3: [{ who: 'Mira', text: 'Last one — Pelabuhan. Flat out!' }] } },
+  5: { intro: [
+    { who: 'Mira', text: 'Over here, Raka! The market is crawling with cops.' },
+    { who: 'Raka', text: 'Hold on, Mira. I am coming through them.' } ],
+    stages: { 2: [{ who: 'Mira', text: 'Get me out of here. Safehouse, fast!' }],
+      3: [{ who: 'Dimas', text: 'Tail on you. Break line of sight and they lose you.' }] } },
+  6: { intro: [
+    { who: 'Dimas', text: 'The bank vault is yours for ten seconds. Make them count.' },
+    { who: 'Sari', text: 'Engine is warm. Get out fast after the grab.' } ],
+    stages: { 2: [{ who: 'Raka', text: 'Vault open. Hold it — ten seconds.' }],
+      3: [{ who: 'Mira', text: 'Cash in hand. Pelabuhan, and do not stop for anyone.' }] } },
+  7: { intro: [
+    { who: 'Raka', text: 'The Boss is running Downtown. Corner him at the pier.' },
+    { who: 'Mira', text: 'He drives like he owns the road. Prove him wrong.' } ],
+    stages: { 2: [{ who: 'Dimas', text: 'He is boxed in. Pier, now — end this.' }] } },
+  8: { intro: [
+    { who: 'Sari', text: 'Last job, Raka. Harbour vault, then Bukit. Everything rides on this.' },
+    { who: 'Raka', text: 'Lembayung is ours after tonight.' } ],
+    stages: { 2: [{ who: 'Raka', text: 'Cargo loaded. Do not scratch it.' }],
+      3: [{ who: 'Mira', text: 'Bukit, flat out. The whole city is watching.' }],
+      4: [{ who: 'Dimas', text: 'Final getaway. Lose them and it is over.' }] } },
+};
+
+// v4 night: the game clock already runs (one minute every two seconds),
+// and now the sky follows it. Dusk fades from 18:00, full dark lands at
+// 20:00 and lifts at 05:00, daylight is back by 06:00. Headlights are
+// warm white cones; the market lanterns and street lamps glow after dark.
+export const NIGHT = {
+  dusk: 18 * 60, dark: 20 * 60, dawn: 5 * 60, day: 6 * 60,
+  headlight: 0xfff6c0, skyDay: 0xff8c42, skyNight: 0x0b1026, fogDay: 0xffb703, fogNight: 0x141a33,
+};
+
 // Weapons: owned by respect, with real ammo. Pistol is always owned;
 // SMG unlocks at 100 respect, Shotgun at 200, Rifle at 300.
 export const WEAPONS = [
@@ -136,9 +256,11 @@ export const FLASH = { size: 1.15, color: 0xffe066, core: 0xfffbe6 };
 export const HINTS = {
   walk: 'WASD move · follow the yellow beacon to the mission marker',
   steal: 'Press E near a parked car to steal it',
-  drive: 'Drive! W accelerate · S brake · Space handbrake · Z/X/C crew abilities',
+  drive: 'Drive! W accelerate · S brake · Space handbrake · Shift nitro · Z/X/C crew abilities',
   combat: 'Click to shoot · take down the red enemies · Shift to run',
   weapons: 'M map · P pause · 1-4 weapons · R radio · Z/X/C crew abilities',
+  melee: 'F melee · Click to shoot · the riot cop takes three times the hits',
+  race: 'T start race · follow the orange checkpoints · beat the rivals',
   done: '',
 };
 
