@@ -14,6 +14,13 @@ import { saveGame, loadGame, loadAllSaves, hasSave } from './save.js';
 import { startMission } from './missions.js';
 import { startPoliceChase } from './police.js';
 import { startRace } from './races.js';
+import { updateJobs, toggleJobBoard } from './jobs.js';
+import { updateCollectibles } from './collectibles.js';
+import { updateStunts } from './stunts.js';
+import { updateWeather } from './weather.js';
+import { updateHeat, payBribe } from './heat.js';
+import { unlockEpilogue, updateEpilogue, startEpilogue } from './story2.js';
+import { updatePedReactions } from './pedreact.js';
 
 export function startLembayungHeat() {
   const THREE = window.THREE;
@@ -144,6 +151,8 @@ export function startLembayungHeat() {
       if (pressed.has('KeyT')) world.tryStartRace(state);
       // Melee swing (F): on foot only, the world decides if it lands.
       if (pressed.has('KeyF')) world.meleeAttack(state);
+      if (pressed.has('KeyJ')) toggleJobBoard(state);
+      if (pressed.has('KeyB')) payBribe(state);
       // Garage (G): opens the garage from play, closes it back to play.
       if (pressed.has('KeyG')) {
         if (screen === SCREEN_PLAY) { screen = SCREEN_GARAGE; showGarageScreen(state); }
@@ -168,6 +177,13 @@ export function startLembayungHeat() {
         screen = SCREEN_PLAY;
         startRace(state, raceId, state.scene, THREE);
       }
+      if (state.pendingEpilogue != null && screen === SCREEN_MAP) {
+        const epiId = state.pendingEpilogue;
+        state.pendingEpilogue = null;
+        hideScreens();
+        screen = SCREEN_PLAY;
+        startEpilogue(state, epiId);
+      }
       const actions = input.takeActions();
       const pressed = input.takePressed();
       const drag = input.takeDrag();
@@ -190,6 +206,16 @@ export function startLembayungHeat() {
       const before = state.missionsDone;
       world.step(STEP, input, actions);
       if (state.missionsDone > before) afterMissionComplete();
+      if (state.missionsDone >= 8) unlockEpilogue(state);
+      if (screen === SCREEN_PLAY) {
+        updateJobs(state, STEP, THREE);
+        updateCollectibles(state, STEP, THREE);
+        updateStunts(state, STEP, THREE);
+        updateWeather(state, STEP, THREE);
+        updateHeat(state, STEP, THREE);
+        updateEpilogue(state, STEP);
+        updatePedReactions(state, STEP);
+      }
       if (actions & 16) {
         // Shoot on foot: a real shot (ammo, aim, damage) — and a shot
         // fired near the police raises the heat.
