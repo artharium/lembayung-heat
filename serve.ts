@@ -15,6 +15,9 @@ const requested = portIndex === -1 ? 8080 : Number(args[portIndex + 1]);
 const port = Number.isInteger(requested) && requested > 0 && requested < 65536 ? requested : 8080;
 // v3: --host to bind somewhere other than loopback, --verbose to log what
 // the browser actually asks for (handy when a 404 hides in the console).
+// v5: game/src now carries seven more modules (jobs, collectibles, stunts,
+// weather, heat, story2, pedreact) — all plain static files, served the
+// same way as the rest of the game.
 const hostIndex = args.indexOf('--host');
 const host = hostIndex === -1 ? '127.0.0.1' : args[hostIndex + 1] || '127.0.0.1';
 const verbose = args.includes('--verbose');
