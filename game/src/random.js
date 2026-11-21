@@ -41,5 +41,12 @@ export function createRandom(seed) {
     }
     return pairs[pairs.length - 1][0];
   }
-  return { next, range, pick, int, shuffle, oneIn, gauss, weighted, seed };
+  // A bell-shaped value clamped around a centre: the seeded gauss,
+  // pulled back inside [centre - spread, centre + spread], for anything
+  // that should cluster near a centre but never run away from it.
+  function gaussRange(centre, spread) {
+    const v = centre + gauss() * spread;
+    return Math.max(centre - spread, Math.min(centre + spread, v));
+  }
+  return { next, range, pick, int, shuffle, oneIn, gauss, weighted, gaussRange, seed };
 }
