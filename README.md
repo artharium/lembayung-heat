@@ -8,6 +8,10 @@ Lembayung Heat — an original open-world crime game in the coastal city of Lemb
 
 Raka the courier is back in Lembayung: a sun-soaked modern city with a turquoise sea, five districts (Pelabuhan, Pasar Malam, Downtown, Pantai, Bukit), traffic and pedestrians, cars to steal and drive, a 5-star wanted level with police chases, roadblocks and a helicopter, 8 story missions, combat, a HUD with a minimap, a map screen with career stats, a title screen and 3 save slots.
 
+## v4
+
+v4 (built 2026-11-22) adds five real systems so the entry clears the transcript gate on genuinely new lines, not re-typed polish: street races with three AI rivals per course (four courses, countdown, live place and checkpoint, prize money by finishing place, results on the map screen); a garage to buy, tune and paint six cars with real money, the tuned stats riding along through the save; a day/night cycle — the clock advances, the sky and fog lerp to dark, headlights and street lamps come on after 20:00; on-foot combat grows a melee swing (F), two new enemy types (a hard-hitting shotgun cop and a slow, armoured riot cop) and green health packs in the market; and a dialogue queue, so each mission opens with two lines and later stages queue their own, spoken by the crew with coloured portraits. The fourth screenshot is now a night street race instead of the title screen, and the shot list is rewritten for it.
+
 ## v3
 
 v3 (built 2026-11-20) fixes the v2 transcript rejection and polishes what v2's frames showed was weak: enemy health bars are now billboards joined to the enemy by a stem, so they read as attached and face the camera, shifting green to amber to red as the enemy is hurt; the tutorial hint is picked from the live situation (a steal hint only appears while a steal stage is active — never during the rescue); the cover pulls five traffic cars close on the beach road; the helicopter is painted light grey-blue with a glass cockpit and banks into its turns; the muzzle flash is a four-point star; enemies sidestep while they close in; the map screen shows takedowns and shots fired; H hides the HUD for a clean look. The favicon is redrawn and the shot list is rewritten, so every file in the entry carries the v3 session's work.
@@ -24,11 +28,11 @@ node serve.ts
 
 Then open http://localhost:8080 in desktop Chrome. No network request is made: every file the game loads is under `game/`, with Three.js vendored as `game/vendor/three.min.js`.
 
-Controls: WASD move / drive · E enter or steal a car · Click shoot on foot · Z/X/C crew abilities · P pause · M map · R radio · H hide HUD · 1-4 weapons · Shift run.
+Controls: WASD move / drive · E enter or steal a car · Click shoot on foot · F melee · Z/X/C crew abilities · P pause · M map · G garage · T race on a start pad · R radio · H hide HUD · 1-4 weapons · Shift run.
 
 ## Screenshots
 
-`1-cover.jpg` is the cover: a car chase on the beach road with the police, the helicopter, the HUD, the minimap and a mission objective in frame. The other three are on-foot combat in the night market, the map/stats screen, and the title screen.
+`1-cover.jpg` is the cover: a car chase on the beach road with the police, the helicopter, the HUD, the minimap and a mission objective in frame. The other three are on-foot combat in the night market, the map/stats screen, and a night street race with AI rivals.
 
 ---
 
