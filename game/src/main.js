@@ -2,17 +2,18 @@
 // 1/60 s steps, the renderer paints what is there. Screens: title, play,
 // paused, map. ?shot=cover|chase|onfoot|map|title&seed=1 stages that scene
 // instead of running the loop, paints it twice and sets window.__shotReady.
-import { STEP, RADIOS, WEAPONS } from './config.js';
+import { STEP, RADIOS, WEAPONS, CARS } from './config.js';
 import { createRandom } from './random.js';
 import { createWorld } from './world.js';
 import { ACTION_CONFIRM, ACTION_PAUSE, ACTION_MAP, ACTION_ENTER, createInput } from './input.js';
-import { createRenderer, SCREEN_TITLE, SCREEN_PLAY, SCREEN_PAUSED, SCREEN_MAP } from './render.js';
+import { createRenderer, SCREEN_TITLE, SCREEN_PLAY, SCREEN_PAUSED, SCREEN_MAP, SCREEN_GARAGE } from './render.js';
 import { stageShot } from './shots.js';
 import { updateHud } from './hud.js';
-import { showTitleScreen, showMapScreen, showPauseScreen, hideScreens } from './screens.js';
+import { showTitleScreen, showMapScreen, showPauseScreen, showGarageScreen, hideScreens } from './screens.js';
 import { saveGame, loadGame, loadAllSaves, hasSave } from './save.js';
 import { startMission } from './missions.js';
 import { startPoliceChase } from './police.js';
+import { startRace } from './races.js';
 
 export function startLembayungHeat() {
   const THREE = window.THREE;
@@ -139,9 +140,34 @@ export function startLembayungHeat() {
         const hud = document.getElementById('hud');
         if (hud) hud.style.display = hudHidden ? 'none' : 'block';
       }
+      // Race start (T): only from the driver's seat, only on a pad.
+      if (pressed.has('KeyT')) world.tryStartRace(state);
+      // Melee swing (F): on foot only, the world decides if it lands.
+      if (pressed.has('KeyF')) world.meleeAttack(state);
+      // Garage (G): opens the garage from play, closes it back to play.
+      if (pressed.has('KeyG')) {
+        if (screen === SCREEN_PLAY) { screen = SCREEN_GARAGE; showGarageScreen(state); }
+        else if (screen === SCREEN_GARAGE) { screen = SCREEN_PLAY; hideScreens(); }
+      }
     }
 
     function step() {
+      // A race picked on the map screen: close the map and start the race.
+      // From the map it starts in the player's garage car at the start
+      // line; from a pad (T) it needs the car already. The map never
+      // starts a race by itself — this is the one place the screen changes.
+      if (state.pendingRace != null && screen === SCREEN_MAP) {
+        const raceId = state.pendingRace;
+        state.pendingRace = null;
+        if (!state.inCar) {
+          state.inCar = true;
+          state.carIndex = state.garage ? state.garage.selected : 0;
+          state.carName = CARS[state.carIndex].name;
+        }
+        hideScreens();
+        screen = SCREEN_PLAY;
+        startRace(state, raceId, state.scene, THREE);
+      }
       const actions = input.takeActions();
       const pressed = input.takePressed();
       const drag = input.takeDrag();
