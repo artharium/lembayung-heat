@@ -23,7 +23,25 @@ export function startPoliceChase(state, scene, THREE) {
   if (want >= 3) spawnRoadblock(state, scene, THREE);
   if (want >= 5) spawnHelicopter(state, scene, THREE);
   updatePoliceList(state);
+  policeChatter(state);
   return state.police.length;
+}
+
+// PD chatter: when a chase starts, dispatch says so in the dialogue
+// queue, so the chase talks back instead of only showing stars. The line
+// fits the heat: a one-star pickup gets the spotted call, five stars get
+// the roadblock call. The queue plays it when the current line ends.
+export function policeChatter(state) {
+  const lines = [
+    'All units, suspect spotted. Move in.',
+    'Suspect is running. Cut off the beach road.',
+    'Air One is up. Keep eyes on the suspect.',
+    'Roadblocks going up. Do not let him through.',
+  ];
+  const line = lines[Math.min(Math.max(state.wanted - 1, 0), lines.length - 1)];
+  if (!line) return;
+  state.dlgQueue = state.dlgQueue || [];
+  state.dlgQueue.push({ who: 'Dispatch', text: line });
 }
 
 // A real roadblock: two police cars parked across the road ahead of the
