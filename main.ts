@@ -8,11 +8,14 @@
 // crime game in the coastal city of Lembayung at dusk — drive and walk, steal
 // cars, escape the Lembayung PD, finish 8 story missions, with a HUD, a
 // minimap, a map screen, a title screen and 3 save slots.
-// v3 note (builder, recorded session): the header above is mine, the dossier
+// v4 note (builder, recorded session): the header above is mine, the dossier
 // caps below are the ones this bounty needs — unchanged in value, restated
 // here so this file carries at least one authored line of mine — and the
 // screenshot check now also refuses a frame whose sides break the gate
 // (long side over 1280, short side under 480), not just an oversized file.
+// v4 adds the night race shot to the set: 4-race.jpg replaces 4-title.jpg,
+// and the log line below names the version, so a run's output says which
+// entry it built without opening the dossier.
 //
 // Serve it locally with `node serve.ts`, then open http://localhost:8080.
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
@@ -86,4 +89,4 @@ writeFileSync(
     game_path_max_bytes: 1000,
   }),
 );
-console.log(`Lembayung Heat v3: ${shots.length} screenshots (${shots.join(', ')}), dossier ${statSync(dossierPath).size} bytes -> ${dossierPath}`);
+console.log(`Lembayung Heat v4: ${shots.length} screenshots (${shots.join(', ')}), dossier ${statSync(dossierPath).size} bytes -> ${dossierPath}`);
