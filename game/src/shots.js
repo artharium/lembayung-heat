@@ -145,6 +145,17 @@ function stageOnFoot(world, state) {
   marketPeds.forEach(([x, z], i) => {
     if (state.pedestrians[i]) { state.pedestrians[i].x = x; state.pedestrians[i].z = z; }
   });
+  // v5 staging: a melee swing caught mid-arc against the riot cop, and a
+  // health pack on the ground in front of Raka so the new melee + pickup
+  // systems read in the frame. The arc timer is held long (0.9s) so it is
+  // still showing when the screenshot fires.
+  state.meleeTimer = 0.9;
+  state.meleeCool = 0;
+  if (state.healthPacks && state.healthPacks[0]) {
+    state.healthPacks[0].x = state.player.x + fwd.x * 4;
+    state.healthPacks[0].z = state.player.z + fwd.z * 4;
+    state.healthPacks[0].taken = false;
+  }
   return { screen: SCREEN_PLAY, best: 0 };
 }
 
