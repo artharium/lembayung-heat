@@ -5,7 +5,7 @@
 // city. v3 pulls the beach-road traffic closer together (five hero cars in
 // a tight stagger instead of three far apart) and gives the market crates
 // and sign boards, so both read at a glance in a small thumbnail.
-import { DISTRICTS, ROAD_GAP, WORLD_SIZE } from './config.js';
+import { DISTRICTS, ROAD_GAP, WORLD_SIZE, RACE_DEFS } from './config.js';
 
 export function buildCityDistricts(scene, THREE, rand) {
   const group = new THREE.Group();
@@ -44,6 +44,8 @@ export function buildCityDistricts(scene, THREE, rand) {
   buildPier(group, THREE);
   buildMarket(group, THREE, rand);
   buildPalms(group, THREE, rand);
+  buildStreetLamps(group, THREE);
+  buildRacePads(group, THREE);
   scene.add(group);
   return group;
 }
@@ -261,6 +263,73 @@ export function buildMarket(group, THREE, rand) {
     group.add(board);
   }
   return group;
+}
+
+// Street lamps along the beach road and the market road: a pole and a
+// warm glowing head, so the night has points of light on the ground and
+// the beach road reads at 21:40. The heads are basic material, so they
+// glow even when the ambient drops at night.
+export function buildStreetLamps(group, THREE) {
+  const poleMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
+  const headMat = new THREE.MeshBasicMaterial({ color: 0xffd166 });
+  const lamps = new THREE.Group();
+  lamps.name = 'StreetLamps';
+  for (let z = -168; z <= 168; z += 42) {
+    for (const x of [-161, -175]) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 7, 6), poleMat);
+      pole.position.set(x, 3.5, z);
+      lamps.add(pole);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.7, 8, 8), headMat);
+      head.position.set(x, 7.2, z);
+      lamps.add(head);
+    }
+  }
+  for (let x = -160; x <= 160; x += 42) {
+    for (const z of [119, 133]) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 7, 6), poleMat);
+      pole.position.set(x, 3.5, z);
+      lamps.add(pole);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.7, 8, 8), headMat);
+      head.position.set(x, 7.2, z);
+      lamps.add(head);
+    }
+  }
+  group.add(lamps);
+  return lamps;
+}
+
+// Race start pads: a checkered line across the road at every race start,
+// with two flag poles, so a player can find a race by driving, not just
+// by opening the map. The pad is turned to face the race direction, so
+// the line always lies across the road, never along it.
+export function buildRacePads(group, THREE) {
+  const pads = new THREE.Group();
+  pads.name = 'RacePads';
+  for (const def of RACE_DEFS) {
+    const pad = new THREE.Group();
+    for (let i = 0; i < 8; i += 1) {
+      const sq = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.1, 1.2),
+        new THREE.MeshBasicMaterial({ color: i % 2 ? 0x111111 : 0xffffff }));
+      sq.position.set(-4.2 + i * 1.2, 0.7, 0);
+      pad.add(sq);
+    }
+    for (const side of [-5, 5]) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 6, 6),
+        new THREE.MeshLambertMaterial({ color: 0x222222 }));
+      pole.position.set(side, 3, 0);
+      pad.add(pole);
+      const flag = new THREE.Mesh(new THREE.BoxGeometry(2, 1.2, 0.1),
+        new THREE.MeshBasicMaterial({ color: 0xff8500 }));
+      flag.position.set(side, 6, 0);
+      pad.add(flag);
+    }
+    const first = def.checkpoints[0];
+    pad.rotation.y = Math.atan2(first.x - def.start.x, first.z - def.start.z) + Math.PI;
+    pad.position.set(def.start.x, 0, def.start.z);
+    pads.add(pad);
+  }
+  group.add(pads);
+  return pads;
 }
 
 export function buildPalms(group, THREE, rand) {
