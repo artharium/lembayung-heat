@@ -3,13 +3,16 @@
 // per system so the frame reads top to bottom: player, crowd, police,
 // enemies, effects, marker, camera.
 import { buildCityDistricts, spawnTraffic, spawnPedestrians, makeCarMesh } from './city.js';
-import { CARS, ENEMY_BAR, FLASH } from './config.js';
+import { CARS, ENEMY_BAR, FLASH, NIGHT, ENEMY_TYPES } from './config.js';
+import { nightFactor } from './world.js';
+import { effectiveCar } from './garage.js';
 
 export const SCREEN_TITLE = 'title';
 export const SCREEN_PLAY = 'play';
 export const SCREEN_PAUSED = 'paused';
 export const SCREEN_MAP = 'map';
 export const SCREEN_OVER = 'over';
+export const SCREEN_GARAGE = 'garage';
 
 export function createRenderer(canvas, THREE, rand) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -23,7 +26,13 @@ export function createRenderer(canvas, THREE, rand) {
   const sun = new THREE.DirectionalLight(0xff9e5e, 1.4);
   sun.position.set(-120, 90, -60);
   scene.add(sun);
-  buildSky(scene, THREE, rand);
+  // Night palette, built once and lerped every frame: the sky, the fog
+  // and the lights follow the game clock instead of flipping at a switch.
+  const daySky = new THREE.Color(NIGHT.skyDay);
+  const nightSky = new THREE.Color(NIGHT.skyNight);
+  const dayFog = new THREE.Color(NIGHT.fogDay);
+  const nightFog = new THREE.Color(NIGHT.fogNight);
+  const skyBits = buildSky(scene, THREE, rand);
 
   const city = buildCityDistricts(scene, THREE, rand);
   const traffic = spawnTraffic(scene, THREE, rand, 12);
@@ -36,6 +45,13 @@ export function createRenderer(canvas, THREE, rand) {
   scene.add(playerCar);
   const smokePool = buildSmokePool(scene, THREE);
   const marker = buildMarker(scene, THREE);
+  const headlights = buildHeadlights(THREE);
+  playerCar.add(headlights);
+  const nitroFlame = buildNitroFlame(THREE);
+  playerCar.add(nitroFlame);
+  const swing = buildMeleeSwing(playerMesh, THREE);
+  const healthPackMeshes = buildHealthPackPool(scene, THREE);
+  const raceMarkers = buildRaceMarkers(scene, THREE);
 
   // Sun disc + glow halo low on the west, so the sky has a source, and
   // dusk clouds: big flattened spheres high up, catching the sunset.
@@ -56,6 +72,7 @@ export function createRenderer(canvas, THREE, rand) {
       cloud.position.set(-260 + rand.next() * 420, 75 + rand.next() * 35, -220 + rand.next() * 320);
       scene.add(cloud);
     }
+    return { sunBall, sunGlow };
   }
 
   // Raka on foot: teal jacket, skin head, gun in the right hand pointing
@@ -149,6 +166,130 @@ export function createRenderer(canvas, THREE, rand) {
     puff.visible = true;
   }
 
+  // Headlights: two visible beams plus a real spotlight, riding on the
+  // player car. They only switch on after dark (syncPlayer), so a dusk
+  // drive looks like dusk and a night drive looks like night.
+  function buildHeadlights(THREE) {
+    const group = new THREE.Group();
+    group.name = 'Headlights';
+    const beamMat = new THREE.MeshBasicMaterial({ color: NIGHT.headlight, transparent: true, opacity: 0.22 });
+    for (const wz of [0.7, -0.7]) {
+      const beam = new THREE.Mesh(new THREE.ConeGeometry(1.6, 14, 10, 1, true), beamMat);
+      beam.rotation.z = Math.PI / 2;
+      beam.position.set(9.2, 0.75, wz);
+      group.add(beam);
+    }
+    const spot = new THREE.SpotLight(NIGHT.headlight, 0, 60, 0.5, 0.4, 1.2);
+    spot.position.set(2.2, 1, 0);
+    const spotTarget = new THREE.Object3D();
+    spotTarget.position.set(20, 0, 0);
+    group.add(spotTarget);
+    spot.target = spotTarget;
+    spot.name = 'HeadlightSpot';
+    group.add(spot);
+    group.visible = false;
+    return group;
+  }
+
+  // The nitro flame: an orange cone and a yellow core behind the car,
+  // built the same way as the headlight beams (apex back, base at the
+  // exhaust) and visible only while the tank is boosting — the renderer
+  // reads state.nitroFlame, the world sets it, so the flame is the boost,
+  // not a sticker.
+  function buildNitroFlame(THREE) {
+    const group = new THREE.Group();
+    group.name = 'NitroFlame';
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(0.55, 2.4, 8),
+      new THREE.MeshBasicMaterial({ color: 0xff8500, transparent: true, opacity: 0.85 }));
+    cone.rotation.z = Math.PI / 2;
+    cone.position.set(-3.4, 1, 0);
+    group.add(cone);
+    const core = new THREE.Mesh(new THREE.ConeGeometry(0.3, 1.5, 8),
+      new THREE.MeshBasicMaterial({ color: 0xffd166 }));
+    core.rotation.z = Math.PI / 2;
+    core.position.set(-3.1, 1, 0);
+    group.add(core);
+    group.visible = false;
+    return group;
+  }
+
+  // The melee swing: a white arc that flashes in front of Raka for one
+  // beat after a swing, so a punch reads as a punch, not a silent shove.
+  function buildMeleeSwing(playerMesh, THREE) {
+    const arc = new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.12, 6, 12, Math.PI * 0.9),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 }));
+    arc.rotation.x = Math.PI / 2;
+    arc.position.set(0, 1.4, 1.0);
+    arc.visible = false;
+    arc.name = 'MeleeSwing';
+    playerMesh.add(arc);
+    return arc;
+  }
+
+  // Medkit meshes: a green box with a white cross, one per pack in the
+  // world state. The pool is built once; syncHealthPacks hides the taken
+  // ones, so a collected medkit is visibly gone.
+  function buildHealthPackPool(scene, THREE) {
+    const pool = [];
+    for (let i = 0; i < 3; i += 1) {
+      const g = new THREE.Group();
+      const box = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.0, 1.6),
+        new THREE.MeshLambertMaterial({ color: 0x06d6a0 }));
+      box.position.y = 0.5;
+      g.add(box);
+      const crossA = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.2, 0.3),
+        new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      crossA.position.y = 1.05;
+      g.add(crossA);
+      const crossB = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 1.0),
+        new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      crossB.position.y = 1.05;
+      g.add(crossB);
+      g.visible = false;
+      scene.add(g);
+      pool.push(g);
+    }
+    return pool;
+  }
+
+  // Race checkpoint markers: orange diamonds floating over the first
+  // three checkpoints and a checkered flag at the finish. The pool is
+  // built once; syncRace places them on the active race's checkpoints
+  // and the next one pulses, so the player can always see where to go.
+  function buildRaceMarkers(scene, THREE) {
+    const markers = [];
+    for (let i = 0; i < 3; i += 1) {
+      const d = new THREE.Mesh(new THREE.OctahedronGeometry(2.2),
+        new THREE.MeshBasicMaterial({ color: 0xff8500 }));
+      d.position.y = 8;
+      d.visible = false;
+      scene.add(d);
+      markers.push(d);
+    }
+    const flag = new THREE.Group();
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 7, 6),
+      new THREE.MeshLambertMaterial({ color: 0x222222 }));
+    pole.position.y = 3.5;
+    flag.add(pole);
+    const cloth = new THREE.Mesh(new THREE.BoxGeometry(3, 1.8, 0.1),
+      new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    cloth.position.set(1.6, 6, 0);
+    flag.add(cloth);
+    for (let r = 0; r < 2; r += 1) {
+      for (let c = 0; c < 4; c += 1) {
+        if ((r + c) % 2) continue;
+        const sq = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.9, 0.12),
+          new THREE.MeshBasicMaterial({ color: 0x111111 }));
+        sq.position.set(0.4 + c * 0.75, 5.55 + r * 0.9, 0);
+        flag.add(sq);
+      }
+    }
+    flag.visible = false;
+    scene.add(flag);
+    markers.push(flag);
+    return markers;
+  }
+
   // An enemy: red body, skin head, and a health bar that is part of him.
   // The bar lives in its own group in the scene (not inside the enemy's
   // rotating group) and copies the camera's rotation every frame, so it
@@ -158,10 +299,15 @@ export function createRenderer(canvas, THREE, rand) {
   // shrinks from the right and shifts green to amber to red as he is hurt.
   function makeEnemyMesh(enemy) {
     const g = new THREE.Group();
+    // The body colour is the type: a grunt is dark red, a shotgun cop
+    // purple, a riot cop near-black and visibly bigger — the fight reads
+    // before the first shot is fired.
+    const typeDef = (enemy.type && ENEMY_TYPES[enemy.type]) || ENEMY_TYPES.grunt;
     const eBody = new THREE.Mesh(new THREE.CapsuleGeometry(0.75, 1.2, 4, 8),
-      new THREE.MeshLambertMaterial({ color: 0x9d0208 }));
+      new THREE.MeshLambertMaterial({ color: typeDef.color }));
     eBody.position.y = 1.4;
     g.add(eBody);
+    if (enemy.type === 'riot') g.scale.setScalar(1.18);
     const eHead = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 10),
       new THREE.MeshLambertMaterial({ color: 0xe07a5f }));
     eHead.position.y = 2.9;
@@ -202,7 +348,9 @@ export function createRenderer(canvas, THREE, rand) {
     playerCar.visible = state.inCar;
     playerMesh.visible = !state.inCar;
     if (state.inCar) {
-      const def = CARS[state.carIndex % CARS.length];
+      // The paint and the tune come from the garage: the car on the road
+      // is the car the player bought and painted, not the factory one.
+      const def = effectiveCar(state);
       if (playerCar.userData.bodyMat) playerCar.userData.bodyMat.color.set(def.color);
       if (playerCar.userData.roofMat) playerCar.userData.roofMat.color.set(def.color);
       playerCar.position.set(state.player.x, 1, state.player.z);
@@ -215,7 +363,19 @@ export function createRenderer(canvas, THREE, rand) {
       playerMesh.rotation.y = state.player.heading;
       flash.visible = (state.muzzleTimer || 0) > 0;
       if (flash.visible) flash.scale.setScalar(0.85 + Math.random() * 0.45);
+      swing.visible = (state.meleeTimer || 0) > 0;
     }
+    // Headlights live on the car and only switch on after dark: the
+    // beams and the spotlight follow the clock, not a key.
+    const dark = nightFactor(state);
+    headlights.visible = state.inCar && dark > 0.4;
+    if (headlights.visible) {
+      const spot = headlights.getObjectByName('HeadlightSpot');
+      if (spot) spot.intensity = dark * 2.5;
+    }
+    // The nitro flame follows the tank, not the clock: it shows only in
+    // the frames where the player is actually boosting.
+    nitroFlame.visible = state.inCar && (state.nitroFlame || 0) > 0;
   }
 
   function syncCrowd(state) {
@@ -269,6 +429,62 @@ export function createRenderer(canvas, THREE, rand) {
     }
   }
 
+  // Night: the sky, the fog, the ambient and the sun all lerp with the
+  // clock, and the sun disc drops out once it is properly dark — a night
+  // drive in Lembayung is dark blue, not orange.
+  function syncNight(state) {
+    const n = nightFactor(state);
+    scene.background.copy(daySky).lerp(nightSky, n);
+    scene.fog.color.copy(dayFog).lerp(nightFog, n);
+    ambient.intensity = 0.9 - 0.55 * n;
+    sun.intensity = 1.4 - 1.25 * n;
+    if (skyBits) {
+      skyBits.sunBall.visible = n < 0.9;
+      skyBits.sunGlow.visible = n < 0.9;
+    }
+  }
+
+  // Race: rival cars ride their own meshes (built when the race starts),
+  // checkpoint diamonds sit over the course, and the next checkpoint
+  // pulses so the player can see it from down the road. No race, no
+  // markers — the road is clean again.
+  function syncRace(state) {
+    const race = state.race;
+    for (const m of raceMarkers) m.visible = false;
+    if (!race) return;
+    for (const r of race.rivals) {
+      if (!r.mesh) continue;
+      r.mesh.position.set(r.x, 1, r.z);
+      r.mesh.rotation.y = r.heading - Math.PI / 2;
+    }
+    race.def.checkpoints.forEach((cp, i) => {
+      const m = raceMarkers[i];
+      if (!m) return;
+      m.visible = true;
+      if (i < 3) {
+        m.position.set(cp.x, 8, cp.z);
+        const next = i === race.nextCp;
+        m.rotation.y += 0.03;
+        m.scale.setScalar(next ? 1.25 + Math.sin(performance.now() / 180) * 0.2 : 1);
+      } else {
+        m.position.set(cp.x, 0, cp.z);
+      }
+    });
+  }
+
+  // Medkits: a green box with a white cross for every pack still on the
+  // ground. Taken packs vanish with the state, so the player can see
+  // what is left to grab.
+  function syncHealthPacks(state) {
+    const packs = state.healthPacks || [];
+    healthPackMeshes.forEach((mesh, i) => {
+      const pack = packs[i];
+      if (!pack || pack.taken) { mesh.visible = false; return; }
+      mesh.visible = true;
+      mesh.position.set(pack.x, 0, pack.z);
+    });
+  }
+
   function syncEffects(state) {
     for (const ev of state.smokeEvents.splice(0)) spawnSmokePuff(ev.x, ev.z);
     for (const puff of smokePool) {
@@ -308,8 +524,11 @@ export function createRenderer(canvas, THREE, rand) {
     // does not fill the frame and the roadblock, police and skyline ahead
     // have room to read.
     const coverShot = state.shotMode && state.shotName === 'cover';
-    const dist = state.inCar ? (coverShot ? 17 : 14) : (onfootClose ? 8 : 8);
-    const height = state.inCar ? (coverShot ? 7 : 5.5) : (onfootClose ? 4 : 4);
+    // The race shot sits closer and lower than the cover: the rivals
+    // ahead have to read, not the skyline behind them.
+    const raceShot = state.shotMode && state.shotName === 'race';
+    const dist = state.inCar ? (coverShot ? 17 : raceShot ? 12 : 14) : (onfootClose ? 8 : 8);
+    const height = state.inCar ? (coverShot ? 7 : raceShot ? 5 : 5.5) : (onfootClose ? 4 : 4);
     camera.position.set(
       state.player.x + Math.sin(back) * dist,
       height,
@@ -319,10 +538,13 @@ export function createRenderer(canvas, THREE, rand) {
 
   function draw(state, screen) {
     resize();
+    syncNight(state);
     syncPlayer(state);
     syncCrowd(state);
     syncPoliceChase(state);
     syncEnemies(state);
+    syncRace(state);
+    syncHealthPacks(state);
     syncEffects(state);
     placeCamera(state, screen);
     renderer.render(scene, camera);
