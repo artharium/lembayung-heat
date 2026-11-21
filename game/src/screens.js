@@ -5,6 +5,7 @@
 // the world now keeps.
 import { DISTRICTS, MISSIONS, EXPORT_ZONE, RACE_DEFS, GARAGE_PRICES } from './config.js';
 import { missionSummary } from './missions.js';
+import { startEpilogue, epilogueSummary } from './story2.js';
 import { raceResultsSummary, formatRaceTime } from './races.js';
 import { garageSummary, garageOwnedCount, buyCar, selectCar, upgradeCar, paintCar } from './garage.js';
 
@@ -19,7 +20,7 @@ export function showTitleScreen(state) {
 
 function careerStats(state) {
   const collected = 20 - (Array.isArray(state.collectibles) ? state.collectibles.length : 0);
-  const completion = Math.round((state.missionsDone / 8) * 60 + (collected / 20) * 15 + (state.racesWon / 4) * 15 + (state.stuntJumps / 8) * 10);
+  const completion = Math.round((state.missionsDone / 8) * 50 + (collected / 20) * 12 + (state.racesWon / 4) * 12 + (state.stuntJumps / 8) * 8 + ((state.jobsDone || 0) / 6) * 9 + ((state.collectiblesFound || 0) / 20) * 9);
   return [
     `STORY MISSIONS ${state.missionsDone}/8`,
     `STREET RACES ${state.racesWon}/4`,
@@ -32,6 +33,10 @@ function careerStats(state) {
     `TAKEDOWNS ${state.takedowns || 0}`,
     `SHOTS FIRED ${state.shotsFired || 0}`,
     `GARAGE ${garageOwnedCount(state)}/6 CARS`,
+    `JOBS DONE ${state.jobsDone || 0}`,
+    `PACKAGES ${state.collectiblesFound || 0}/20`,
+    `STUNT PTS ${state.stuntPoints || 0}`,
+    `HEAT CLEARS ${state.heatClears || 0}`,
     `BEST RACE ${bestRaceLine(state)}`,
     `MONEY $${state.money.toLocaleString('en-US')}`,
     `RESPECT ${state.respect}`,
@@ -73,6 +78,29 @@ export function showMapScreen(state) {
     raceList.querySelectorAll('button[data-race]').forEach((btn) => {
       btn.addEventListener('click', () => { state.pendingRace = Number(btn.dataset.race); });
     });
+  }
+  // Epilogue cards on the map: mission 9 and 10, locked until the story
+  // is done (and 10 until 9 is done). A START button hands the mission to
+  // the main loop (pendingEpilogue), the same way races do.
+  const epiList = document.getElementById('epilogue-list');
+  if (epiList) {
+    const epi = epilogueSummary(state);
+    if (!epi.unlocked) {
+      epiList.innerHTML = '<div class="epi-row">EPILOGUE LOCKED — FINISH ALL 8 STORY MISSIONS</div>';
+    } else if (epi.legend) {
+      epiList.innerHTML = '<div class="epi-row">EPILOGUE COMPLETE — LEGEND OF LEMBAYUNG</div>';
+    } else {
+      epiList.innerHTML = [9, 10].map((id) => {
+        const done = epi.done.includes(id);
+        const locked = id === 10 && !epi.done.includes(9);
+        const label = done ? 'REPLAY — HALF PAY' : locked ? 'LOCKED — FINISH MISSION 9' : 'START';
+        const title = id === 9 ? 'MISSION 9 — THE INFORMANT · $3,000' : 'MISSION 10 — THE LAST FERRY · $5,000';
+        return `<div class="epi-row"><span>${title}</span><button data-epi="${id}" ${locked ? 'disabled' : ''}>${label}</button></div>`;
+      }).join('');
+      epiList.querySelectorAll('button[data-epi]').forEach((btn) => {
+        btn.addEventListener('click', () => { state.pendingEpilogue = Number(btn.dataset.epi); });
+      });
+    }
   }
   const mapCanvas = document.getElementById('big-map');
   if (mapCanvas) drawBigMap(state, mapCanvas);
