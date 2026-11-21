@@ -1,12 +1,14 @@
 // Save: 3 slots in localStorage, autosave after each mission.
-// Key functions first: saveGame, loadGame. Saves are versioned (v2) and
+// Key functions first: saveGame, loadGame. Saves are versioned (v3) and
 // validated on load: a slot with a wrong version or a missing number is
 // treated as empty instead of crashing the title screen. The combat
 // counters (takedowns, shots fired) ride along as optional fields, so a
-// v2 save still loads — they just start at zero.
+// v2 save still loads — they just start at zero. v3 adds the garage and
+// the race results, restored through the garage's own validator.
 import { SAVE_KEY } from './config.js';
+import { restoreGarage } from './garage.js';
 
-const SAVE_VERSION = 2;
+const SAVE_VERSION = 3;
 
 export function saveGame(state, slot) {
   const data = {
@@ -16,6 +18,7 @@ export function saveGame(state, slot) {
     exportsDone: state.exportsDone, districtJobs: state.districtJobs,
     carsStolen: state.carsStolen, copsEscaped: state.copsEscaped,
     takedowns: state.takedowns || 0, shotsFired: state.shotsFired || 0,
+    garage: state.garage || null, raceResults: state.raceResults || {},
     ammo: state.ammo, day: state.day, clockMin: state.clockMin,
     missionId: state.mission ? state.mission.id : 1,
     player: { x: state.player.x, z: state.player.z },
@@ -43,6 +46,8 @@ export function loadGame(state, slot) {
   state.carsStolen = data.carsStolen; state.copsEscaped = data.copsEscaped;
   state.takedowns = typeof data.takedowns === 'number' ? data.takedowns : 0;
   state.shotsFired = typeof data.shotsFired === 'number' ? data.shotsFired : 0;
+  if (data.garage) restoreGarage(state, data.garage);
+  if (data.raceResults && typeof data.raceResults === 'object') state.raceResults = data.raceResults;
   if (Array.isArray(data.ammo)) state.ammo = data.ammo;
   if (typeof data.day === 'number') state.day = data.day;
   if (typeof data.clockMin === 'number') state.clockMin = data.clockMin;
