@@ -3,8 +3,10 @@
 // render.js syncs meshes to this state, hud.js reads it. Every number the
 // HUD shows comes from this state, and every hint it shows comes from what
 // the player is actually doing right now.
-import { CARS, RADIOS, WEAPONS, JOB_SPOTS, EXPORT_ZONE, HINTS } from './config.js';
+import { RADIOS, WEAPONS, JOB_SPOTS, EXPORT_ZONE, HINTS, ENEMY_TYPES } from './config.js';
 import { stepMissions, startMission } from './missions.js';
+import { stepRace, startRace, nearestRacePad, clearRace } from './races.js';
+import { effectiveCar } from './garage.js';
 import { stepPolice, startPoliceChase, clearPolice, updatePoliceList } from './police.js';
 import { districtAt } from './city.js';
 import { saveGame } from './save.js';
@@ -21,13 +23,38 @@ export const EVENT_COLLECT = 4;
 export function hintFor(state) {
   if ((state.tutorialStep || 0) >= 4) return HINTS.done;
   const fighting = (state.enemies || []).some((e) => e.alive);
-  if (!state.inCar && fighting) return HINTS.combat;
+  if (!state.inCar && fighting) {
+    // Close enough to swing: the melee hint beats the shooting hint,
+    // because the riot cop up close is a fistfight, not a gunfight.
+    const close = (state.enemies || []).some((e) => e.alive
+      && Math.hypot(e.x - state.player.x, e.z - state.player.z) < 4);
+    if (close) return HINTS.melee;
+    return HINTS.combat;
+  }
+  const pad = nearestRacePad(state);
+  if (state.inCar && pad) return HINTS.race;
   const stage = state.mission && !state.mission.done
     ? state.mission.def.stages[state.mission.stage] : null;
   if (!state.inCar && stage && stage.type === 'steal') return HINTS.steal;
   if (state.inCar) return HINTS.drive;
   if ((state.tutorialStep || 0) === 0) return HINTS.walk;
   return HINTS.weapons;
+}
+
+// How dark it is, from the game clock: 0 in daylight, 1 at full night,
+// ramping through dusk (18:00-20:00) and dawn (05:00-06:00). The renderer
+// reads this every frame, so the sky, the fog and the headlights follow
+// the clock instead of a switch.
+export function nightFactor(state) {
+  const m = (state.clockMin || 0) % 1440;
+  if (m >= 1200 || m < 300) return 1;
+  if (m >= 1080) return (m - 1080) / 120;
+  if (m >= 300) return 1 - (m - 300) / 60;
+  return 0;
+}
+
+export function isNight(state) {
+  return nightFactor(state) > 0.5;
 }
 
 export function createWorld(random) {
@@ -51,6 +78,10 @@ export function createWorld(random) {
       quickFix: { cd: 0 }, eyesOut: { cd: 0, active: 0 }, swapPlates: { cd: 0 },
     },
     popups: [], enemies: [], enemiesSpawnedFor: '',
+    race: null, raceResults: {}, pendingRace: null,
+    healthPacks: [], meleeCool: 0, meleeTimer: 0,
+    nitro: 100, nitroCool: 0, nitroFlame: 0,
+    dlgQueue: [], dlgTimer: 0,
     tutorialStep: 0, tutorialTimer: 0, mapOpened: false,
     splash: null, smokeEvents: [], muzzleTimer: 0,
     driftTimer: 0, driftCool: 0, nearMissCool: 0, crashCool: 0, policeRamCool: 0, enemyShotCool: 0,
@@ -68,6 +99,75 @@ export function createWorld(random) {
   }
   state.collectibles = freshCollectibles();
 
+  // Three medkits on the market street: green boxes the player walks over
+  // for +25 health. They respawn with a new game, so the market fight is
+  // always survivable — barely.
+  function freshHealthPacks() {
+    return [
+      { x: -50, z: 118, taken: false },
+      { x: -25, z: 100, taken: false },
+      { x: -58, z: 108, taken: false },
+    ];
+  }
+
+  // Melee: a close swing on foot (key F). Range 3m, a 120-degree cone in
+  // front of the player, 40 damage, and the enemy is shoved 2m back so a
+  // swing clears space instead of trading hits. A 0.6s cooldown keeps it
+  // a swing, not a machine gun. Kills pay the same takedown as a shot.
+  function meleeAttack(state) {
+    if (state.inCar || state.meleeCool > 0) return false;
+    state.meleeCool = 0.6;
+    state.meleeTimer = 0.18;
+    const hx = Math.sin(state.player.heading); const hz = Math.cos(state.player.heading);
+    let hit = null; let bestD = 3.2;
+    for (const e of state.enemies) {
+      if (!e.alive) continue;
+      const dx = e.x - state.player.x; const dz = e.z - state.player.z;
+      const d = Math.hypot(dx, dz);
+      if (d > bestD) continue;
+      if ((dx * hx + dz * hz) / (d || 1) < 0.5) continue;
+      bestD = d; hit = e;
+    }
+    if (!hit) return true;
+    hit.health -= 40;
+    const push = Math.hypot(hit.x - state.player.x, hit.z - state.player.z) || 1;
+    hit.x += ((hit.x - state.player.x) / push) * 2;
+    hit.z += ((hit.z - state.player.z) / push) * 2;
+    if (hit.health <= 0) {
+      hit.alive = false;
+      state.takedowns += 1;
+      state.money += 100; state.respect += 5;
+      state.popups.push({ text: 'TAKEDOWN', amount: 100, timer: 3 });
+      state.dialogue = 'Raka: Down. Fists work too.';
+    }
+    return true;
+  }
+
+  // Start the race under the player: drive onto a pad and press T, or pick
+  // the race on the map screen (which sets pendingRace and the main loop
+  // calls this). Needs a car — a race on foot is a footrace, and this game
+  // is about cars.
+  function tryStartRace(state) {
+    if (!state.inCar || state.race) return null;
+    const pad = nearestRacePad(state);
+    if (!pad) return null;
+    return startRace(state, pad.id, state.scene, state.THREE);
+  }
+
+  // The dialogue queue: the head line shows for four seconds, then the
+  // next one takes its place. The queue is fed by missions (intro lines
+  // on start, stage lines on advance) and by the police chatter, so the
+  // dialogue box always has the newest thing somebody said — and nothing
+  // is ever overwritten mid-sentence.
+  function stepDialogueQueue(state, dt) {
+    if (!state.dlgQueue.length) return;
+    state.dlgTimer -= dt;
+    if (state.dlgTimer > 0) return;
+    const next = state.dlgQueue.shift();
+    state.dialogue = `${next.who}: ${next.text}`;
+    state.dlgTimer = 4;
+  }
+
   function reset() {
     state.player.x = 0; state.player.z = 20; state.player.heading = 0; state.player.speed = 0;
     state.health = 100; state.armour = 50; state.money = 1250; state.respect = 0;
@@ -77,6 +177,12 @@ export function createWorld(random) {
     state.ammo = [24, 0, 0, 0]; state.weapon = 0;
     state.crew = { quickFix: { cd: 0 }, eyesOut: { cd: 0, active: 0 }, swapPlates: { cd: 0 } };
     state.popups = []; state.enemies = []; state.enemiesSpawnedFor = '';
+    if (state.scene) clearRace(state, state.scene);
+    state.raceResults = {};
+    state.healthPacks = freshHealthPacks();
+    state.meleeCool = 0; state.meleeTimer = 0;
+    state.nitro = 100; state.nitroCool = 0; state.nitroFlame = 0;
+    state.dlgQueue = []; state.dlgTimer = 0;
     state.tutorialStep = 0; state.tutorialTimer = 0; state.mapOpened = false;
     state.splash = null; state.smokeEvents = []; state.muzzleTimer = 0;
     state.driftTimer = 0; state.driftCool = 0; state.nearMissCool = 0; state.crashCool = 0; state.enemyShotCool = 0;
@@ -132,9 +238,14 @@ export function createWorld(random) {
     return false;
   }
 
-  function spawnEnemy(state, x, z) {
+  // An enemy of a given type: the type decides health, speed, damage,
+  // reach and colour (ENEMY_TYPES), so a shotgun cop and a riot cop fight
+  // differently from a grunt. The mesh colour comes from the same type.
+  function spawnEnemy(state, x, z, type) {
+    const def = ENEMY_TYPES[type] || ENEMY_TYPES.grunt;
     const e = {
-      x, z, health: 100, maxHealth: 100, alive: true, mesh: null,
+      x, z, type: type || 'grunt', def,
+      health: def.hp, maxHealth: def.hp, alive: true, mesh: null,
       strafeDir: random.next() > 0.5 ? 1 : -1, strafeTimer: 1 + random.next(),
     };
     state.enemies.push(e);
@@ -177,13 +288,28 @@ export function createWorld(random) {
   }
 
   function stepCar(dt, input, dir) {
-    const carDef = CARS[state.carIndex % CARS.length];
+    // The car driven is the garage-tuned one: upgrades bought in the
+    // garage change the top speed and the steering of this very car.
+    const carDef = effectiveCar(state);
     const accel = carDef.accel;
     if (dir.y > 0) state.player.speed = Math.min(carDef.speed, state.player.speed + accel * dt);
     else if (dir.y < 0) state.player.speed = Math.max(-8, state.player.speed - accel * dt);
     else state.player.speed *= (1 - 0.8 * dt);
+    // Nitro (Shift): a real boost with a real tank. Holding Shift in a car
+    // lifts the top speed by 40% while the tank lasts, drains 35 a second
+    // and locks for 2 seconds when it runs dry; it refills 12 a second
+    // when not boosting. The flame timer is what the renderer draws.
+    const boosting = (input.isDown('ShiftLeft') || input.isDown('ShiftRight')) && state.nitro > 0 && state.nitroCool <= 0;
+    if (boosting) {
+      state.player.speed = Math.min(carDef.speed * 1.4, state.player.speed + accel * 1.6 * dt);
+      state.nitro = Math.max(0, state.nitro - 35 * dt);
+      state.nitroFlame = 0.15;
+      if (state.nitro <= 0) state.nitroCool = 2;
+    } else {
+      state.nitro = Math.min(100, state.nitro + 12 * dt);
+    }
     if (input.isDown('Space')) state.player.speed *= (1 - 3 * dt);
-    state.player.heading += dir.x * -1.4 * dt * (state.player.speed / carDef.speed) * (state.player.speed >= 0 ? 1 : -1);
+    state.player.heading += dir.x * -1.4 * dt * (state.player.speed / carDef.speed) * (state.player.speed >= 0 ? 1 : -1) * (carDef.handling || 1);
     state.player.x += Math.sin(state.player.heading) * state.player.speed * dt;
     state.player.z += Math.cos(state.player.heading) * state.player.speed * dt;
     state.speedKmh = Math.abs(state.player.speed) * 3.6;
@@ -260,18 +386,22 @@ export function createWorld(random) {
     if (state.mission && state.mission.id === 5 && state.mission.stage === 0 && !state.inCar
       && state.enemiesSpawnedFor !== '5-0') {
       state.enemiesSpawnedFor = '5-0';
-      spawnEnemy(state, state.player.x + 6, state.player.z - 10);
-      spawnEnemy(state, state.player.x - 8, state.player.z - 14);
-      spawnEnemy(state, state.player.x + 10, state.player.z - 18);
-      state.dialogue = 'Mira: Three of them, Raka. Take them down!';
+      // One of each type, so the market fight teaches all three: the
+      // grunt closes fast, the shotgun cop hurts up close, the riot cop
+      // soaks bullets. The dialogue names the danger, not the type.
+      spawnEnemy(state, state.player.x + 6, state.player.z - 10, 'grunt');
+      spawnEnemy(state, state.player.x - 8, state.player.z - 14, 'shotgun');
+      spawnEnemy(state, state.player.x + 10, state.player.z - 18, 'riot');
+      state.dialogue = 'Mira: Three of them, Raka. The big one takes some stopping!';
     }
     for (const e of state.enemies) {
       if (!e.alive) continue;
+      const def = e.def || ENEMY_TYPES.grunt;
       const dx = state.player.x - e.x; const dz = state.player.z - e.z;
       const d = Math.hypot(dx, dz) || 1;
       if (d > 3) {
-        e.x += (dx / d) * 3.2 * dt;
-        e.z += (dz / d) * 3.2 * dt;
+        e.x += (dx / d) * def.speed * dt;
+        e.z += (dz / d) * def.speed * dt;
       }
       // Strafe: slide sideways across the player's line of fire, flipping
       // direction every second or two, so the fight moves instead of
@@ -280,8 +410,11 @@ export function createWorld(random) {
       if (e.strafeTimer <= 0) { e.strafeDir *= -1; e.strafeTimer = 1 + random.next() * 1.5; }
       e.x += (-dz / d) * e.strafeDir * 1.2 * dt;
       e.z += (dx / d) * e.strafeDir * 1.2 * dt;
-      if (d < 20) {
-        state.health = Math.max(0, state.health - 3 * dt);
+      // Each type fights at its own reach and weight: the shotgun cop
+      // only fires inside 12m and hits for 9, the riot cop has to get
+      // close but hits for 5, the grunt chips away from 20m.
+      if (d < def.range) {
+        state.health = Math.max(0, state.health - def.damage * dt);
         if (state.enemyShotCool <= 0) {
           state.enemyShotCool = 2;
           state.smokeEvents.push({ x: e.x, z: e.z });
@@ -291,6 +424,16 @@ export function createWorld(random) {
   }
 
   function stepPickups() {
+    // Medkits: walk over a green box in the market and it patches +25
+    // health, then it is gone until a new game. The box is real state —
+    // the renderer draws what is left, the health bar shows the gain.
+    for (const pack of state.healthPacks) {
+      if (!pack.taken && Math.hypot(pack.x - state.player.x, pack.z - state.player.z) < 3) {
+        pack.taken = true;
+        state.health = Math.min(100, state.health + 25);
+        state.dialogue = 'Raka: Medkit. +25 health.';
+      }
+    }
     // Collectibles: golden geckos.
     for (const c of state.collectibles) {
       if (!c.taken && Math.hypot(c.x - state.player.x, c.z - state.player.z) < 3) {
@@ -347,9 +490,16 @@ export function createWorld(random) {
     for (const k of ['driftCool', 'nearMissCool', 'crashCool', 'policeRamCool', 'enemyShotCool']) {
       if (state[k] > 0) state[k] -= dt;
     }
+    if (state.meleeCool > 0) state.meleeCool -= dt;
+    if (state.meleeTimer > 0) state.meleeTimer -= dt;
+    if (state.nitroCool > 0) state.nitroCool -= dt;
+    if (state.nitroFlame > 0) state.nitroFlame -= dt;
+    stepDialogueQueue(state, dt);
+    if (state.race) stepRace(state, dt);
     const dir = input.direction();
-    // Enter / exit car.
-    if (actions && (actions & 8)) {
+    // Enter / exit car. Not during a race: leaving the car mid-race
+    // would strand the race with no driver, so E is dead until it ends.
+    if (actions && (actions & 8) && !(state.race && state.race.phase !== 'done')) {
       if (state.inCar) {
         state.inCar = false;
         state.player.x += 3; state.speedKmh = 0;
@@ -365,8 +515,11 @@ export function createWorld(random) {
         }
       }
     }
-    if (state.inCar) stepCar(dt, input, dir);
-    else stepOnFoot(dt, { x: dir.x, y: dir.y, run: input.isDown('ShiftLeft') || input.isDown('ShiftRight') });
+    // During the race countdown the car is held on the grid: no rolling
+    // start, no jumping the lights. Once the flag drops it drives.
+    const held = state.race && state.race.phase === 'countdown';
+    if (state.inCar && !held) stepCar(dt, input, dir);
+    else if (!state.inCar) stepOnFoot(dt, { x: dir.x, y: dir.y, run: input.isAnyDown(['ShiftLeft', 'ShiftRight']) });
     // Clamp to the city + beach.
     state.player.x = Math.max(-200, Math.min(200, state.player.x));
     state.player.z = Math.max(-200, Math.min(200, state.player.z));
@@ -386,7 +539,9 @@ export function createWorld(random) {
       saveGame(state, 0);
       if (state.missionsDone >= 8) state.dialogue = 'Raka: Harbour Heist done. Lembayung is ours.';
     }
-    stepPolice(state, dt);
+    // The race is a closed event: the PD sits it out until the race is
+    // done, so a chase can never run a rival off the road mid-race.
+    if (!state.race || state.race.phase === 'done') stepPolice(state, dt);
     // Tutorial: four short steps that retire as the player learns the
     // game. The hint itself comes from hintFor, so the text always fits
     // the moment instead of the step number.
@@ -400,5 +555,5 @@ export function createWorld(random) {
   }
 
   reset();
-  return { state, reset, step, nearestParkedCar, useCrewAbility, shootAt, spawnEnemy, hintFor };
+  return { state, reset, step, nearestParkedCar, useCrewAbility, shootAt, spawnEnemy, hintFor, meleeAttack, tryStartRace };
 }
