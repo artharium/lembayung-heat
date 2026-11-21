@@ -19,6 +19,12 @@ export function saveGame(state, slot) {
     carsStolen: state.carsStolen, copsEscaped: state.copsEscaped,
     takedowns: state.takedowns || 0, shotsFired: state.shotsFired || 0,
     garage: state.garage || null, raceResults: state.raceResults || {},
+    jobsDone: state.jobsDone || 0, faresEarned: state.faresEarned || 0, bestFare: state.bestFare || 0,
+    collectiblesFound: state.collectiblesFound || 0, packageIds: state.pkgState ? state.pkgState.collected.slice() : [],
+    stuntPoints: state.stuntPoints || 0, bestJump: state.bestJump || 0,
+    weatherId: state.weather ? state.weather.id : 'clear', weatherChanges: state.weatherChanges || 0,
+    heatClears: state.heatClears || 0, bribesPaid: state.bribesPaid || 0, bribeSpent: state.bribeSpent || 0,
+    crowdTips: state.crowdTips || 0, epilogueDone: state.epilogueDone || 0, epiloguePayouts: state.epiloguePayouts || 0,
     ammo: state.ammo, day: state.day, clockMin: state.clockMin,
     missionId: state.mission ? state.mission.id : 1,
     player: { x: state.player.x, z: state.player.z },
@@ -48,6 +54,14 @@ export function loadGame(state, slot) {
   state.shotsFired = typeof data.shotsFired === 'number' ? data.shotsFired : 0;
   if (data.garage) restoreGarage(state, data.garage);
   if (data.raceResults && typeof data.raceResults === 'object') state.raceResults = data.raceResults;
+  state.jobsDone = data.jobsDone || 0; state.faresEarned = data.faresEarned || 0; state.bestFare = data.bestFare || 0;
+  state.collectiblesFound = data.collectiblesFound || 0;
+  if (Array.isArray(data.packageIds)) state.pkgState = { collected: data.packageIds.slice(), ping: null, meshes: null, sparkles: null };
+  state.stuntPoints = data.stuntPoints || 0; state.bestJump = data.bestJump || 0;
+  state.weatherId = data.weatherId || 'clear';
+  state.weatherChanges = data.weatherChanges || 0;
+  state.heatClears = data.heatClears || 0; state.bribesPaid = data.bribesPaid || 0; state.bribeSpent = data.bribeSpent || 0;
+  state.crowdTips = data.crowdTips || 0; state.epilogueDone = data.epilogueDone || 0; state.epiloguePayouts = data.epiloguePayouts || 0;
   if (Array.isArray(data.ammo)) state.ammo = data.ammo;
   if (typeof data.day === 'number') state.day = data.day;
   if (typeof data.clockMin === 'number') state.clockMin = data.clockMin;
