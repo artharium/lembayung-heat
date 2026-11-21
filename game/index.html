@@ -20,6 +20,11 @@
     <div id="mission-objective">Pick up the package at Pasar Malam</div>
     <div id="mission-timer">⏱ 00:00</div>
     <div id="game-clock">DAY 1 · 18:23</div>
+    <div id="job-tracker"></div>
+    <div id="stunt-line"></div>
+    <div id="heat-line"></div>
+    <div id="package-line"></div>
+    <div id="epilogue-line"></div>
   </div>
   <div class="panel" id="race-hud" style="display:none">
     <div id="race-line">RACE</div>
@@ -56,6 +61,8 @@
   <div id="dialogue"><span id="dlg-face">R</span><span id="dlg-name">Raka</span><span id="dlg-text">Raka: Lembayung at dusk. Time to work.</span></div>
   <div id="tutorial"></div>
   <div id="splash"></div>
+  <div id="job-board" style="display:none"></div>
+  <div id="safehouse-overlay" style="display:none"></div>
 </div>
 
 <div class="screen" id="title-screen" style="display:flex">
@@ -74,7 +81,7 @@
 <div class="screen" id="pause-screen">
   <div class="screen-box">
     <h1>PAUSED</h1>
-    <p>WASD move / drive · E enter car · M map · G garage · T race on a pad · F melee · P resume · R radio · Z/X/C crew · H hide HUD</p>
+    <p>WASD move / drive · E enter car · M map · G garage · T race on a pad · F melee · J jobs · B bribe · P resume · R radio · Z/X/C crew · H hide HUD</p>
     <p>Your progress autosaves after every mission.</p>
     <button onclick="document.getElementById('pause-screen').style.display='none'">RESUME (P)</button>
   </div>
@@ -86,6 +93,8 @@
     <canvas id="big-map" width="640" height="300"></canvas>
     <h3>STREET RACES</h3>
     <div id="race-list"></div>
+    <h3>EPILOGUE</h3>
+    <div id="epilogue-list"></div>
     <div id="map-stats"></div>
     <p>Press M to close the map.</p>
   </div>
