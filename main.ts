@@ -1,4 +1,8 @@
 // Lembayung Heat — a working gta6-01 entry (Node 22, standard library only):
+// v5 adds seven new systems to the game folder: jobs, hidden packages,
+// stunt jumps, dynamic weather, safehouses and bribes, two epilogue
+// missions, and pedestrian reactions (game/src/jobs.js, collectibles.js,
+// stunts.js, weather.js, heat.js, story2.js, pedreact.js).
 // the game is this directory's game/ folder, plain static files a desktop
 // browser loads offline (game/index.html and its ES modules, Three.js vendored
 // as game/vendor/three.min.js, no network request), and this program hands it
