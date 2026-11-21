@@ -90,3 +90,24 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #1a0f2e; fon
 .garage-row { display: grid; grid-template-columns: 190px 130px 1fr auto; gap: 8px; align-items: center; background: rgba(255,255,255,0.07); border-radius: 6px; padding: 8px 10px; margin: 5px 0; font-size: 14px; }
 .garage-car { font-weight: 800; }
 .garage-row button { font-size: 12px; padding: 5px 9px; margin: 2px; }
+
+/* v5: job board, safehouse overlay, epilogue cards and tracker lines. */
+#job-board { position: fixed; left: 50%; top: 12%; transform: translateX(-50%); width: 620px; max-width: 92vw; background: rgba(8, 12, 20, 0.94); border: 2px solid #ffc93c; border-radius: 10px; padding: 16px 18px; z-index: 40; color: #fff; font-size: 14px; }
+.job-title { font-size: 20px; font-weight: 800; color: #ffc93c; margin-bottom: 8px; }
+.job-active { margin-bottom: 10px; color: #7ee2a8; }
+.job-row { display: grid; grid-template-columns: 150px 1fr 110px auto; gap: 8px; align-items: center; background: rgba(255,255,255,0.07); border-radius: 6px; padding: 8px 10px; margin: 5px 0; }
+.job-kind { font-weight: 800; }
+.job-route { color: #cfe3ff; }
+.job-meta { color: #ffc93c; text-align: right; }
+.job-accept { font-size: 12px; padding: 6px 10px; background: #ffc93c; border: none; border-radius: 5px; font-weight: 800; cursor: pointer; }
+.job-accept:disabled { background: #555; color: #bbb; cursor: default; }
+.job-foot { margin-top: 10px; color: #999; font-size: 12px; }
+#safehouse-overlay { position: fixed; left: 0; top: 0; right: 0; bottom: 0; display: none; align-items: center; justify-content: center; background: rgba(20, 60, 30, 0.55); color: #b9ffcf; font-size: 30px; font-weight: 800; z-index: 45; text-shadow: 0 2px 8px #000; }
+#job-tracker, #stunt-line, #heat-line, #package-line, #epilogue-line { font-size: 13px; font-weight: 700; color: #ffe14d; margin-top: 2px; }
+#stunt-line { color: #ff8a5c; }
+#heat-line { color: #7ee2a8; }
+#package-line { color: #ffd23f; }
+#epilogue-line { color: #c9a7ff; }
+.epi-row { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.07); border-radius: 6px; padding: 8px 10px; margin: 5px 0; font-size: 14px; }
+.epi-row button { font-size: 12px; padding: 5px 10px; background: #c9a7ff; border: none; border-radius: 5px; font-weight: 800; cursor: pointer; }
+.epi-row button:disabled { background: #555; color: #bbb; cursor: default; }
