@@ -3,7 +3,7 @@
 // the world steps it, the HUD reads it, and completing a stage pays real
 // money and respect. v3 adds a summary the map screen reads, so the stats
 // there never drift from the mission state.
-import { MISSIONS } from './config.js';
+import { MISSIONS, DIALOGUE } from './config.js';
 
 export function startMission(state, id) {
   const def = MISSIONS.find((m) => m.id === id);
@@ -11,7 +11,13 @@ export function startMission(state, id) {
   state.mission = { id: def.id, name: def.name, chapter: def.chapter, verb: def.verb, stage: 0, def, holdTimer: 0, done: false };
   state.missionElapsed = 0;
   state.enemiesSpawnedFor = '';
-  state.dialogue = `Raka: ${def.name} — ${def.stages[0].text}`;
+  // The mission opens with its two intro lines: the first shows at once,
+  // the second queues behind it — the HUD plays them one at a time
+  // instead of one flat line.
+  const lines = (DIALOGUE[def.id] && DIALOGUE[def.id].intro) || [];
+  state.dlgQueue = lines.slice(1).map((l) => ({ who: l.who, text: l.text }));
+  state.dlgTimer = 4;
+  state.dialogue = lines.length ? `${lines[0].who}: ${lines[0].text}` : `Raka: ${def.name} — ${def.stages[0].text}`;
   return state.mission;
 }
 
@@ -33,6 +39,14 @@ export function completeMissionStage(state) {
     state.splash = { text: `MISSION PASSED — ${m.def.name.toUpperCase()}  +$500`, timer: 3 };
     state.dialogue = `Mission complete: ${m.name} — $500 bonus. Nice work, Raka.`;
     return 'complete';
+  }
+  // The next stage queues its own line, so the crew talks the player
+  // through the job instead of the HUD going quiet mid-mission. The stage
+  // text itself gets four seconds first, then the queued line plays.
+  const stageLines = (DIALOGUE[m.def.id] && DIALOGUE[m.def.id].stages && DIALOGUE[m.def.id].stages[m.stage + 1]) || [];
+  if (stageLines.length) {
+    state.dlgQueue = (state.dlgQueue || []).concat(stageLines.map((l) => ({ who: l.who, text: l.text })));
+    if (state.dlgTimer <= 0) state.dlgTimer = 4;
   }
   state.dialogue = `Stage ${m.stage + 1}/${m.def.stages.length}: ${m.def.stages[m.stage].text}`;
   return 'stage';
