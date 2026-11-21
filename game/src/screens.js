@@ -3,8 +3,10 @@
 // and lists the career stats from the same state, so the numbers are real
 // counters, not staged text. v3 adds the takedown and shots-fired counters
 // the world now keeps.
-import { DISTRICTS, MISSIONS, EXPORT_ZONE } from './config.js';
+import { DISTRICTS, MISSIONS, EXPORT_ZONE, RACE_DEFS, GARAGE_PRICES } from './config.js';
 import { missionSummary } from './missions.js';
+import { raceResultsSummary, formatRaceTime } from './races.js';
+import { garageSummary, garageOwnedCount, buyCar, selectCar, upgradeCar, paintCar } from './garage.js';
 
 export function showTitleScreen(state) {
   const el = document.getElementById('title-screen');
@@ -29,10 +31,24 @@ function careerStats(state) {
     `COPS ESCAPED ${state.copsEscaped}`,
     `TAKEDOWNS ${state.takedowns || 0}`,
     `SHOTS FIRED ${state.shotsFired || 0}`,
+    `GARAGE ${garageOwnedCount(state)}/6 CARS`,
+    `BEST RACE ${bestRaceLine(state)}`,
     `MONEY $${state.money.toLocaleString('en-US')}`,
     `RESPECT ${state.respect}`,
     `COMPLETION ${completion}%`,
   ];
+}
+
+// The best race result across all four courses, for the career stats:
+// "1ST · PIER SPRINT" or "—" when no race has ever been run.
+function bestRaceLine(state) {
+  let best = null;
+  for (const r of raceResultsSummary(state)) {
+    if (r.best && (!best || r.best < best.best)) best = r;
+  }
+  if (!best) return '—';
+  const suffix = best.best === 1 ? 'ST' : best.best === 2 ? 'ND' : best.best === 3 ? 'RD' : 'TH';
+  return `${best.best}${suffix} · ${best.name.toUpperCase()}`;
 }
 
 export function showMapScreen(state) {
@@ -44,9 +60,69 @@ export function showMapScreen(state) {
   if (stats) {
     stats.innerHTML = careerStats(state).map((s) => `<div>${s}</div>`).join('');
   }
+  // Street races on the map: every course with the best result, and a
+  // START button that hands the race to the main loop (pendingRace), so
+  // the map never starts a race by itself — the loop owns the screen.
+  const raceList = document.getElementById('race-list');
+  if (raceList) {
+    raceList.innerHTML = raceResultsSummary(state).map((r) => {
+      const best = r.best ? `${r.best}${r.best === 1 ? 'ST' : r.best === 2 ? 'ND' : r.best === 3 ? 'RD' : 'TH'} BEST` : 'NEVER RUN';
+      const time = r.bestTime ? ` · ${formatRaceTime(r.bestTime)}` : '';
+      return `<div class="race-row"><span>${r.name} — ${r.district}</span><span>${best}${time}</span><button data-race="${r.id}">START RACE</button></div>`;
+    }).join('');
+    raceList.querySelectorAll('button[data-race]').forEach((btn) => {
+      btn.addEventListener('click', () => { state.pendingRace = Number(btn.dataset.race); });
+    });
+  }
   const mapCanvas = document.getElementById('big-map');
   if (mapCanvas) drawBigMap(state, mapCanvas);
   return el;
+}
+
+// The garage screen: every model with its price or its upgrades, and
+// buttons that spend real money through the garage functions. Buttons
+// rebuild the list after every click, so the money and the levels on
+// screen are always the state, never a stale copy.
+export function showGarageScreen(state) {
+  const el = document.getElementById('garage-screen');
+  if (!el) return null;
+  el.style.display = 'flex';
+  renderGarageList(state);
+  return el;
+}
+
+function renderGarageList(state) {
+  const list = document.getElementById('garage-list');
+  if (!list) return;
+  const money = document.getElementById('garage-money');
+  if (money) money.textContent = `$${state.money.toLocaleString('en-US')}`;
+  list.innerHTML = garageSummary(state).map((car) => {
+    const up = car.upgrades;
+    const upBtn = (stat, label) => {
+      const level = up[stat];
+      if (level >= 3) return `<span>${label} MAX</span>`;
+      return `<button data-upgrade="${stat}" data-car="${car.index}">${label} Lv${level + 1} — $${GARAGE_PRICES.upgrades[stat][level]}</button>`;
+    };
+    const paintBtns = GARAGE_PRICES.paints.map((c) => `<button data-paint="${c}" data-car="${car.index}" style="background:#${c.toString(16).padStart(6, '0')}" title="Paint $${GARAGE_PRICES.paint}">■</button>`).join('');
+    const action = !car.owned
+      ? `<button data-buy="${car.index}">BUY — $${car.price}</button>`
+      : car.selected
+        ? `<span>SELECTED</span>`
+        : `<button data-select="${car.index}">SELECT</button>`;
+    return `<div class="garage-row"><span class="garage-car" style="color:#${car.color.toString(16).padStart(6, '0')}">● ${car.name}</span><span>${action}</span><span>${upBtn('speed', 'SPEED')} ${upBtn('handling', 'HANDLING')} ${upBtn('armour', 'ARMOUR')}</span><span>${paintBtns}</span></div>`;
+  }).join('');
+  list.querySelectorAll('button[data-buy]').forEach((btn) => {
+    btn.addEventListener('click', () => { buyCar(state, Number(btn.dataset.buy)); renderGarageList(state); });
+  });
+  list.querySelectorAll('button[data-select]').forEach((btn) => {
+    btn.addEventListener('click', () => { selectCar(state, Number(btn.dataset.select)); renderGarageList(state); });
+  });
+  list.querySelectorAll('button[data-upgrade]').forEach((btn) => {
+    btn.addEventListener('click', () => { upgradeCar(state, btn.dataset.upgrade, Number(btn.dataset.car)); renderGarageList(state); });
+  });
+  list.querySelectorAll('button[data-paint]').forEach((btn) => {
+    btn.addEventListener('click', () => { paintCar(state, Number(btn.dataset.paint), Number(btn.dataset.car)); renderGarageList(state); });
+  });
 }
 
 export function showPauseScreen(state) {
@@ -56,7 +132,7 @@ export function showPauseScreen(state) {
 }
 
 export function hideScreens() {
-  for (const id of ['title-screen', 'pause-screen', 'map-screen']) {
+  for (const id of ['title-screen', 'pause-screen', 'map-screen', 'garage-screen']) {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   }
