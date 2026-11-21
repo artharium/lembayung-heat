@@ -21,6 +21,10 @@
     <div id="mission-timer">⏱ 00:00</div>
     <div id="game-clock">DAY 1 · 18:23</div>
   </div>
+  <div class="panel" id="race-hud" style="display:none">
+    <div id="race-line">RACE</div>
+    <div id="race-sub"></div>
+  </div>
   <div class="panel" id="top-right">
     <div id="money">$1,250</div>
     <div id="wanted">☆☆☆☆☆</div>
@@ -44,6 +48,7 @@
   </div>
   <div id="bottom-right">
     <div id="speed">0 KM/H</div>
+    <div id="nitro-wrap"><div id="nitro-label">NITRO · SHIFT</div><div class="bar"><div id="nitro-bar"></div></div></div>
     <div id="car-name">ON FOOT — RAKA</div>
     <div id="location">Lembayung</div>
     <div id="radio">♪ Lembayung 98.6</div>
@@ -58,7 +63,7 @@
     <h1>LEMBAYUNG HEAT</h1>
     <h2>Open-world crime in Lembayung — a sun-soaked coastal city at dusk</h2>
     <p>Raka the courier is back in Lembayung. Eight story missions, car chases, police escapes, street races and a harbour heist. Drive, steal, run — and stay out of the Lembayung PD's sight.</p>
-    <p>WASD move / drive &nbsp;·&nbsp; E enter or steal a car &nbsp;·&nbsp; Click shoot on foot &nbsp;·&nbsp; Z/X/C crew abilities &nbsp;·&nbsp; P pause &nbsp;·&nbsp; M map &nbsp;·&nbsp; R radio &nbsp;·&nbsp; H hide HUD &nbsp;·&nbsp; 1-4 weapons</p>
+    <p>WASD move / drive &nbsp;·&nbsp; E enter or steal a car &nbsp;·&nbsp; Click shoot on foot &nbsp;·&nbsp; F melee &nbsp;·&nbsp; Z/X/C crew abilities &nbsp;·&nbsp; P pause &nbsp;·&nbsp; M map &nbsp;·&nbsp; G garage &nbsp;·&nbsp; T race on a start pad &nbsp;·&nbsp; R radio &nbsp;·&nbsp; H hide HUD &nbsp;·&nbsp; 1-4 weapons</p>
     <div id="save-slots"></div>
     <button id="btn-continue">CONTINUE</button>
     <button id="btn-new">NEW GAME</button>
@@ -69,7 +74,7 @@
 <div class="screen" id="pause-screen">
   <div class="screen-box">
     <h1>PAUSED</h1>
-    <p>WASD move / drive · E enter car · M map · P resume · R radio · Z/X/C crew · H hide HUD</p>
+    <p>WASD move / drive · E enter car · M map · G garage · T race on a pad · F melee · P resume · R radio · Z/X/C crew · H hide HUD</p>
     <p>Your progress autosaves after every mission.</p>
     <button onclick="document.getElementById('pause-screen').style.display='none'">RESUME (P)</button>
   </div>
@@ -79,8 +84,20 @@
   <div class="screen-box">
     <h1>MAP — LEMBAYUNG</h1>
     <canvas id="big-map" width="640" height="300"></canvas>
+    <h3>STREET RACES</h3>
+    <div id="race-list"></div>
     <div id="map-stats"></div>
     <p>Press M to close the map.</p>
+  </div>
+</div>
+
+<div class="screen" id="garage-screen">
+  <div class="screen-box">
+    <h1>GARAGE — LEMBAYUNG</h1>
+    <p>Buy cars, tune them and paint them — every dollar leaves your wallet, every upgrade changes the drive.</p>
+    <div id="garage-money">$0</div>
+    <div id="garage-list"></div>
+    <p>Press G to close the garage. The car you select here is the one you take out next.</p>
   </div>
 </div>
 
