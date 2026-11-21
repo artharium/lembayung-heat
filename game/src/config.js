@@ -275,3 +275,75 @@ export const RADIOS = ['Lembayung 98.6', 'Ombak FM', 'Malam FM'];
 
 export const SAVE_KEY = 'lembayung-heat-save-v1';
 export const BEST_KEY = 'lembayung-heat-best';
+
+// v5 systems: jobs, hidden packages, stunt ramps, weather, safehouses and
+// the two epilogue missions. One compact table per system, imported by its
+// own module (jobs.js, collectibles.js, stunts.js, weather.js, heat.js,
+// story2.js) so the data lives in one place.
+export const V5_DISTRICTS = {
+  Pelabuhan: { x: -72, z: -48 },
+  'Pasar Malam': { x: 27, z: 63 },
+  Downtown: { x: 43, z: -27 },
+  Pantai: { x: -83, z: 33 },
+  Bukit: { x: 73, z: 77 },
+};
+
+export const JOB_TYPES = [
+  { id: 'taxi', kind: 'Taxi Fare', from: 'Downtown', to: 'Pantai', fare: 220, limit: 75, customer: 'Dewi', respect: 0 },
+  { id: 'pizza', kind: 'Pizza Run', from: 'Pasar Malam', to: 'Downtown', fare: 180, limit: 60, customer: 'Pak RT', respect: 0 },
+  { id: 'parcel', kind: 'Parcel Drop', from: 'Pelabuhan', to: 'Bukit', fare: 260, limit: 90, customer: 'Sari', respect: 0 },
+  { id: 'courier', kind: 'Late Night Courier', from: 'Pantai', to: 'Pelabuhan', fare: 320, limit: 80, customer: 'Mira', respect: 50 },
+  { id: 'tour', kind: 'Tourist Tour', from: 'Bukit', to: 'Pasar Malam', fare: 450, limit: 120, customer: 'Bule Tom', respect: 150 },
+  { id: 'ambulance', kind: 'Ambulance Escort', from: 'Downtown', to: 'Pelabuhan', fare: 500, limit: 100, customer: 'Dr. Lestari', respect: 150 },
+];
+
+export const PACKAGE_SPOTS = [
+  { id: 'pkg-pel-1', district: 'Pelabuhan', x: -84, z: -62, hint: 'behind the fish crates' },
+  { id: 'pkg-pel-2', district: 'Pelabuhan', x: -58, z: -38, hint: 'under the dock crane' },
+  { id: 'pkg-pel-3', district: 'Pelabuhan', x: -76, z: -28, hint: 'by the rusted containers' },
+  { id: 'pkg-pel-4', district: 'Pelabuhan', x: -52, z: -64, hint: 'near the ferry gate' },
+  { id: 'pkg-mar-1', district: 'Pasar Malam', x: 12, z: 52, hint: 'behind the satay stall' },
+  { id: 'pkg-mar-2', district: 'Pasar Malam', x: 38, z: 78, hint: 'in the lantern alley' },
+  { id: 'pkg-mar-3', district: 'Pasar Malam', x: 30, z: 48, hint: 'under the market awning' },
+  { id: 'pkg-mar-4', district: 'Pasar Malam', x: 8, z: 74, hint: 'beside the fruit cart' },
+  { id: 'pkg-dow-1', district: 'Downtown', x: 32, z: -38, hint: 'in the office courtyard' },
+  { id: 'pkg-dow-2', district: 'Downtown', x: 58, z: -12, hint: 'behind the bank planters' },
+  { id: 'pkg-dow-3', district: 'Downtown', x: 48, z: -42, hint: 'on the rooftop stairs' },
+  { id: 'pkg-dow-4', district: 'Downtown', x: 26, z: -8, hint: 'by the taxi rank' },
+  { id: 'pkg-pan-1', district: 'Pantai', x: -96, z: 18, hint: 'under the pier boards' },
+  { id: 'pkg-pan-2', district: 'Pantai', x: -72, z: 52, hint: 'behind the beach hut' },
+  { id: 'pkg-pan-3', district: 'Pantai', x: -88, z: 8, hint: 'near the lifeguard tower' },
+  { id: 'pkg-pan-4', district: 'Pantai', x: -66, z: 24, hint: 'in the surf shack' },
+  { id: 'pkg-buk-1', district: 'Bukit', x: 62, z: 62, hint: 'on the hill lookout' },
+  { id: 'pkg-buk-2', district: 'Bukit', x: 88, z: 88, hint: 'behind the villa wall' },
+  { id: 'pkg-buk-3', district: 'Bukit', x: 68, z: 90, hint: 'under the pine tree' },
+  { id: 'pkg-buk-4', district: 'Bukit', x: 90, z: 62, hint: 'by the viewpoint fence' },
+];
+
+export const RAMPS = [
+  { id: 'ramp-pan-1', district: 'Pantai', x: -85, z: 8, heading: 0, label: 'PIER LAUNCH' },
+  { id: 'ramp-pan-2', district: 'Pantai', x: -78, z: 55, heading: 1.57, label: 'BEACH KICKER' },
+  { id: 'ramp-dow-1', district: 'Downtown', x: 45, z: -8, heading: 0, label: 'ROOFTOP GAP' },
+  { id: 'ramp-dow-2', district: 'Downtown', x: 28, z: -30, heading: 3.14, label: 'ALLEY FLYER' },
+  { id: 'ramp-buk-1', district: 'Bukit', x: 75, z: 45, heading: 0, label: 'HILL SEND' },
+  { id: 'ramp-buk-2', district: 'Bukit', x: 60, z: 80, heading: -1.57, label: 'VISTA JUMP' },
+  { id: 'ramp-pel-1', district: 'Pelabuhan', x: -62, z: -32, heading: 1.57, label: 'DOCK RAMP' },
+  { id: 'ramp-mar-1', district: 'Pasar Malam', x: 18, z: 55, heading: 0, label: 'MARKET HOP' },
+];
+
+export const WEATHER_CYCLE = [
+  { id: 'clear', label: 'CLEAR', rain: 0, fog: 0, slip: 0, sky: 0x87b5d6 },
+  { id: 'light-rain', label: 'LIGHT RAIN', rain: 0.4, fog: 0.1, slip: 0.05, sky: 0x6f8fa8 },
+  { id: 'heavy-rain', label: 'HEAVY RAIN', rain: 1, fog: 0.25, slip: 0.14, sky: 0x4d6478 },
+  { id: 'fog', label: 'FOG', rain: 0, fog: 0.85, slip: 0.03, sky: 0x9aa5a0 },
+];
+
+export const SAFEHOUSES = [
+  { id: 'safe-bukit', district: 'Bukit', x: 82, z: 68, label: 'BUKIT SAFEHOUSE' },
+  { id: 'safe-pelabuhan', district: 'Pelabuhan', x: -58, z: -58, label: 'PELABUHAN SAFEHOUSE' },
+];
+
+export const EPILOGUE = [
+  { id: 9, title: 'The Informant', payout: 3000, meet: { x: 25, z: 65, label: 'PASAR MALAM' }, safehouse: { x: 82, z: 68, label: 'BUKIT SAFEHOUSE' }, ambushSeconds: 60, ambushCount: 4, intro: ['Mira: A man in the market knows where the boss keeps the ledger.', 'Raka: Then we go get him. And keep him breathing.'] },
+  { id: 10, title: 'The Last Ferry', payout: 5000, ferry: { x: -70, z: -50, label: 'PELABUHAN FERRY' }, limit: 150, rivals: 3, intro: ['Dimas: Last ferry leaves at midnight. Three of the boss men are already racing it.', 'Raka: Then we beat them to the dock — and we do not stop for anyone.'] },
+];
