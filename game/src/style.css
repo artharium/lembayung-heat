@@ -45,6 +45,9 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #1a0f2e; fon
 #armour-bar { height: 100%; background: #118ab2; width: 50%; }
 #bottom-right { position: absolute; bottom: 14px; right: 14px; text-align: right; background: rgba(8,18,30,0.82); border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; padding: 10px 14px; }
 #speed { font-size: 34px; font-weight: 800; }
+#nitro-wrap { margin: 2px 0 6px; text-align: right; }
+#nitro-label { font-size: 11px; color: #ff8500; font-weight: 800; letter-spacing: 1px; }
+#nitro-bar { height: 100%; background: #ff8500; width: 100%; }
 #car-name { font-size: 16px; color: #ffd166; font-weight: 700; }
 #location { font-size: 13px; color: #ccc; }
 #radio { font-size: 14px; color: #ff8fa3; margin-top: 4px; }
@@ -66,3 +69,24 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #1a0f2e; fon
 .save-slot { background: rgba(255,255,255,0.08); border-radius: 6px; padding: 8px; margin: 5px 0; font-size: 14px; }
 #map-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; text-align: left; font-size: 15px; margin-top: 10px; }
 #big-map { width: 100%; max-width: 640px; height: 300px; border: 2px solid #2ec4b6; border-radius: 8px; background: #0b1c2c; }
+
+/* v4 race HUD: top centre, under the tutorial pill, so the live place,
+   checkpoint and time never cover the mission panel or the money. */
+#race-hud { top: 64px; left: 50%; transform: translateX(-50%); text-align: center; min-width: 260px; }
+#race-line { font-size: 22px; font-weight: 800; color: #ff8500; letter-spacing: 1px; }
+#race-sub { font-size: 14px; color: #ffd166; font-weight: 700; margin-top: 2px; }
+
+/* v4 street races on the map screen: one row per course, name and best
+   result on the left, a real START button on the right. */
+#race-list { text-align: left; margin: 8px 0 4px; }
+.race-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: rgba(255,255,255,0.07); border-radius: 6px; padding: 7px 10px; margin: 4px 0; font-size: 14px; }
+.race-row button { font-size: 13px; padding: 5px 12px; margin: 0; }
+
+/* v4 garage: a taller box (six cars with three upgrade buttons and a
+   paint row each), money big at the top, rows left-aligned. */
+#garage-screen .screen-box { max-width: 860px; text-align: left; }
+#garage-money { font-size: 26px; font-weight: 800; color: #06d6a0; margin: 4px 0 10px; }
+#garage-list { text-align: left; }
+.garage-row { display: grid; grid-template-columns: 190px 130px 1fr auto; gap: 8px; align-items: center; background: rgba(255,255,255,0.07); border-radius: 6px; padding: 8px 10px; margin: 5px 0; font-size: 14px; }
+.garage-car { font-weight: 800; }
+.garage-row button { font-size: 12px; padding: 5px 9px; margin: 2px; }
